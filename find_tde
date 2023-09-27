@@ -1,0 +1,450 @@
+#!/bin/bash
+# call find_tde with arguments
+# 1: atom
+# 2: atom number
+# etc.
+
+shopt -s extglob
+########################################
+# help
+########################################
+Help()
+{
+   # Display Help
+   echo "Bash script to find TDE value for an atom using VASP AIMD/CGM or LAMMPS MD."
+   echo
+   echo "Syntax: find_tde [-c|p|f|h]"
+   echo "options:"
+   echo "c     KE convergence mode: standard or midpoint"
+   echo "p     Simulation program: vasp or lammps"
+   echo "f     LAMMPS force field: choose file"
+   echo "h     Print this Help."
+   echo
+}
+
+usage() { echo "Usage: $0 [-h] [-c <standard|midpoint>] [-p <vasp|lammps>]" 1>&2; exit 1; }
+
+conv_mode="standard"
+sim_prog="vasp"
+lmp_ff="AlGaN.sw"
+
+# get the options
+while getopts ":h:c:p:f:" o; do
+  case "${o}" in
+    h) # display Help
+      Help
+      exit;;
+    c) # Enter KE convergence mode
+      conv_mode=${OPTARG}
+      ((conv_mode == "standard" || conv_mode == "midpoint")) || usage
+      ;;
+    p) # Enter simulation program
+      sim_prog=${OPTARG}
+      ((sim_prog == "vasp" || sim_prog == "lammps")) || usage
+      ;;
+    f) # Enter force field for LAMMPS
+      lmp_ff=${OPTARG}
+      ;;
+    \?) # Invalid option
+      echo "Error: Invalid option"
+      usage
+      exit;;
+  esac
+done
+shift $((OPTIND-1))
+
+########################################
+# set variables for directories
+########################################
+base_path="${PWD}"
+bin_path="${base_path}/bin/"
+inp_path="${base_path}/inp/"
+perfect_path="${base_path}/perfect/"
+
+########################################
+# get perfect crystal energy
+# set loop criterion
+########################################
+if [ "${sim_prog}" = "vasp" ]; then
+  Eperf=$(grep "TOTEN" "${perfect_path}/OUTCAR" | tail -n 1 | grep -Eo '[+-]?[0-9]+([.][0-9]+)?')
+fi
+# flag for continuation of TDE search
+criterion=1
+# flag for mipdoint convergence mode changing energy increment behavior
+defect_flag=0
+
+########################################
+# determine direction
+# gather direction from txt file
+# can write txt file manually or with Python
+#
+# format of text file
+# nL    atom_type    atom_number    ke_i    ke_cut    u    v    w
+# n+1S    atom_type    atom_number    ke_i    ke_cut    r    p    t
+########################################
+# latice directions text file path
+latt_dirs_file="${base_path}/latt_dirs_to_calc.csv"
+
+# set lattice direction as last? direction in text file
+latt_dir_pseudo=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $1}')
+atom_type=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $2}')
+atom_num=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $3}')
+
+# define & create directory for direction
+if [ "${sim_prog}" = "vasp" ]; then
+  tde_run_path="${base_path}/${latt_dir_pseudo}_${atom_type}${atom_num}/"
+elif [ "${sim_prog}" = "lammps" ]; then
+  tde_run_path="${base_path}/${latt_dir_pseudo}_${atom_type}${atom_num}_lmp/"
+fi
+mkdir -p "${tde_run_path}"
+
+# file showing script progress output info
+out_file="${tde_run_path}${latt_dir_pseudo}_${atom_type}${atom_num}_out.txt"
+cat << EOF >> "${out_file}"
+Lattice Direction Pseudo: ${latt_dir_pseudo}
+Atom....................: ${atom_type}
+Atom Number.............: ${atom_num}
+Convergence Mode........: ${conv_mode}
+Simulation Program......: ${sim_prog}
+===========================
+EOF
+echo "Lattice Direction Pseudo: ${latt_dir_pseudo}"
+echo "Atom....................: ${atom_type}"
+echo "Atom Number.............: ${atom_num}"
+echo "Convergence Mode........: ${conv_mode}"
+echo "Simulation Program......: ${sim_prog}"
+echo "==========================="
+
+# file showing delimited output data
+out_data_file="${tde_run_path}${latt_dir_pseudo}_${atom_type}${atom_num}_data.csv"
+echo "Lattice Direction Pseudo, Atom Type, Atom Number, KE, Final Energy (eV), Delta Energy (eV)" >> "${out_data_file}"
+
+########################################
+# choose starting energy
+# first run: use standard 20/25 eV
+# subsequent runs: take from txt file
+# create directory
+########################################
+# initial KE for first run
+KE_i=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $4}')
+KE_cutoff=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $5}')
+KE_cur=${KE_i}
+kinE_path="${tde_run_path}${KE_i}eV"
+
+# initialize min and max KE values, KE_H and KE_L values
+KE_min=${KE_i}
+KE_max=${KE_i}
+KE_H=${KE_i}
+KE_L=${KE_i}
+
+KE_calcs_file="${tde_run_path}KE_calcs_list.txt"
+echo "${KE_i}" > ${KE_calcs_file}
+echo "KE: ${KE_i} eV, run number 1" >> "${out_file}"
+
+#### START LOOP HERE ####
+# while [ ${criterion} -eq 1 ]; do
+while true; do
+# check file to see if this run is first run or subsequent
+  cd ${base_path} || exit
+  num_KE=$(wc -l "${KE_calcs_file}" | cut -c1)
+
+  # if not first run
+  if [ ${num_KE} -gt 1 ]; then
+    # KE_min=$(awk ${KE_calcs_file} | sort -nr | tail -1)
+    # KE_max=$(awk ${KE_calcs_file} | sort -nr | head -1)
+    KE_cur=$(tail -n 1 ${KE_calcs_file} | awk '{print $1}')
+    echo "KE: ${KE_cur} eV, run number ${num_KE}" >> "${out_file}"
+    kinE_path="${tde_run_path}${KE_cur}eV"
+  fi
+
+  mkdir -p "$kinE_path"
+  kinE_path+="/"
+
+########################################
+# copy AIMD input files & write velocity to POSCAR
+# copy all input files to directory
+# overwrite relevant velocity vector from file
+########################################
+  if [ "${sim_prog}" = "vasp" ]; then
+    cp "${inp_path}POTCAR" "${kinE_path}POTCAR"
+    cp "${inp_path}KPOINTS" "${kinE_path}KPOINTS"
+    cp "${inp_path}INCAR_md" "${kinE_path}INCAR"
+    cp "${inp_path}POSCAR" "${kinE_path}POSCAR"
+  elif [ "${sim_prog}" = "lammps" ]; then
+    cp "${inp_path}POTCAR" "${kinE_path}POTCAR"
+    cp "${inp_path}POSCAR" "${kinE_path}POSCAR"
+    cp "${inp_path}input.tde" "${kinE_path}input.tde"
+    cp "${inp_path}${lmp_ff}" "${kinE_path}${lmp_ff}"
+  fi
+  
+########################################
+# calculate velocity vector
+# use last energy in txt file with Python
+# calculate and write to velocity txt file
+########################################
+  # call Python file with KE_cur and latt_dir_pseudo
+  vasp_vel_write.py ${atom_type} ${atom_num} ${latt_dir_pseudo} ${sim_prog} || exit
+  
+  cd ${kinE_path} || exit
+
+########################################
+# !!run VASP calculations OR
+# run LAMMPS calculation
+########################################
+  if [ "${sim_prog}" = "vasp" ]; then
+
+########################################
+# submit AIMD job
+# sbatch run_args.slurm
+########################################
+    if [ ! -f "OUTCAR" ]; then
+      sbatch --nodes=3  --time=60:00:00 --account=mjj5508_b --partition=sla-prio --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_AIMD run_args.slurm
+      echo "AIMD run submitted" >> "${out_file}"
+    else
+      echo "AIMD run already completed" >> "${out_file}"
+    fi
+
+########################################
+# holdup to wait for AIMD job to finish
+# check slurm file every 30 min
+# sleep until end of slurm file confirms end of run
+########################################
+    # Script will kill when "End:" is at the front of the last line in the slurm-*.out file
+    aimd_check_num=-1
+  
+    while true; do
+      if [[ -f "OUTCAR" && ${aimd_check_num} = -1 ]]; then
+        # aimd_slurm=$(ls -l slurm-*+([0-9])*.out | awk '{print $9}')
+        # echo "check ${aimd_slurm}" >> "${out_file}"
+        aimd_check_num=$(bc -l <<< "${aimd_check_num}+1")
+        echo "check ${aimd_check_num}" >> "${out_file}"
+      elif [[ -f "OUTCAR" && ${aimd_check_num} -gt -1 ]]; then
+        tai=$(tail -1 "OUTCAR")
+        if [ "${tai:0:4}" = "STOP" -o "${tai:0:26}" = "                 Voluntary" ]; then
+          break
+        fi
+        echo "check ${aimd_check_num}" >> "${out_file}"
+        aimd_check_num=$(bc -l <<< "${aimd_check_num}+1")
+        sleep 1200
+      else
+        sleep 300
+      fi
+    done
+  
+    echo "AIMD run complete" >> "${out_file}"
+
+########################################
+# copy CGM input files/AIMD CONTCAR
+# create CGM directory, copy input files
+# copy CONTCAR and rename to POSCAR
+########################################
+    cgm_path="${kinE_path}cgm/"
+    mkdir "$cgm_path"
+
+    cp "${kinE_path}CONTCAR" "${cgm_path}POSCAR"
+    cp "${inp_path}KPOINTS" "${cgm_path}KPOINTS"
+    cp "${inp_path}INCAR_cgm" "${cgm_path}INCAR"
+    cp "${inp_path}POTCAR" "${cgm_path}POTCAR"
+
+########################################
+# submit CGM job
+# sbatch run_args.slurm
+########################################
+    cd ${cgm_path} || exit
+    if [ ! -f "OUTCAR" ]; then
+      sbatch --nodes=2  --time=24:00:00 --account=open --partition=open --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_CGM run_args.slurm
+      echo "CGM run submitted" >> "${out_file}"
+    else
+      echo "CGM run already completed" >> "${out_file}"
+    fi
+
+########################################
+# holdup to wait for CGM job to finish
+# check slurm file every 10 min
+# sleep until end of slurm file confirms end of run
+########################################
+    # Script will kill when "End:" is at the front of the last line in the slurm-*.out file
+    cgm_check_num=-1
+  
+    while true; do
+      if [[ -f "OUTCAR" && ${cgm_check_num} = -1 ]]; then
+        # cgm_slurm=$(ls -l slurm-*+([0-9])*.out | awk '{print $9}')
+        # echo "check ${cgm_slurm}" >> "${out_file}"
+        cgm_check_num=$(bc -l <<< "${cgm_check_num}+1")
+        echo "check ${cgm_check_num}" >> "${out_file}"
+      elif [[ -f "OUTCAR" && ${cgm_check_num} -gt -1 ]]; then
+        tai=$(tail -1 "OUTCAR")
+        if [ "${tai:0:4}" = "STOP" -o "${tai:0:26}" = "                 Voluntary" ]; then
+          break
+        fi
+        echo "check ${cgm_check_num}" >> "${out_file}"
+        cgm_check_num=$(bc -l <<< "${cgm_check_num}+1")
+        sleep 300
+      else
+        sleep 180
+      fi
+    done
+  
+  cd ${tde_run_path} || exit
+  
+  echo "CGM run complete" >> "${out_file}"
+
+########################################
+# run VASP calculations OR
+# !!run LAMMPS calculation
+########################################
+  elif [ "${sim_prog}" = "lammps" ]; then
+    poscar2lmp.py || exit
+
+########################################
+# submit MD job
+# sbatch run_args.slurm
+########################################
+    if [ ! -f "log.lammps" ]; then
+      sbatch --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_MD run_lmp.slurm
+      echo "MD run submitted" >> "${out_file}"
+    else
+      echo "MD run already completed" >> "${out_file}"
+    fi
+########################################
+# holdup to wait for MD job to finish
+# check log file every 10 min
+# sleep until end of log file confirms end of run
+########################################
+    # Script will kill when "Total wall time:" is at the front of the last line in the log.lammps file
+    md_check_num=-1
+  
+    while true; do
+      if [[ -f "log.lammps" && ${md_check_num} = -1 ]]; then
+        md_check_num=$(bc -l <<< "${md_check_num}+1")
+        echo "check ${md_check_num}" >> "${out_file}"
+      elif [[ -f "log.lammps" && ${md_check_num} -gt -1 ]]; then
+        tai=$(tail -1 "log.lammps")
+        if [ "${tai:0:4}" = "STOP" -o "${tai:0:16}" = "Total wall time:" ]; then
+          break
+        fi
+        echo "check ${md_check_num}" >> "${out_file}"
+        md_check_num=$(bc -l <<< "${md_check_num}+1")
+        sleep 5
+      else
+        sleep 2
+      fi
+    done
+  
+    echo "MD run complete" >> "${out_file}"
+  fi
+
+########################################
+# record initial KE and final energy in OUTCAR
+# take KE variable, direction and final
+# energy from OUTCAR, write to txt file
+########################################
+  if [ "${sim_prog}" = "vasp" ]; then
+    Efin=$(grep "TOTEN" "${cgm_path}OUTCAR" | tail -n 1  | grep -Eo '[+-]?[0-9]+([.][0-9]+)?')
+  elif [ "${sim_prog}" = "lammps" ]; then
+    Eperf=$(grep "Initial energy" "${kinE_path}log.lammps" | tail -n 1  | grep -Eo '[+-]?[0-9]+([.][0-9]+)?')
+    Efin=$(grep "Final energy" "${kinE_path}log.lammps" | tail -n 1  | grep -Eo '[+-]?[0-9]+([.][0-9]+)?')
+  fi
+  
+  echo "Perfect energy: ${Eperf} eV" >> "${out_file}"
+  echo "Final energy: ${Efin} eV" >> "${out_file}"
+  
+  # calculate difference in final energy from perfect energy
+  Edif=$(echo "${Efin} - ${Eperf}" | bc)
+  
+  echo "Efin - Eperf = ${Efin} eV - ${Eperf} eV = ${Edif} eV" >> "${out_file}"
+
+  # data ouput
+  cat << EOF >> "${out_data_file}"
+${latt_dir_pseudo}, ${atom_type}, ${atom_num}, ${KE_cur}, ${Efin}, ${Edif}
+EOF
+
+########################################
+# loop until 2 runs performed where
+######## KE_H - KE_L = 1 eV and
+######## final E > perfect E
+########################################
+  if [ "${conv_mode}" = "standard" ]; then
+    if [[ $(echo "${Edif} > 1.0" | bc) -eq 1 ]]; then
+      KE_H=${KE_cur}
+      KE_sep=$(echo "${KE_H}-${KE_L}" | bc)
+      echo "KE separation: ${KE_H} - ${KE_L} = ${KE_sep} eV" >> "${out_file}"
+      # if there is a defect, check for sep, if sep is 1 stop, if sep is not 1, subtract 1 and echo to ke file
+      if [[ $(echo "${KE_sep} == 1" | bc) -eq 1 ]]; then
+        echo "Loop complete, TDE found: ${KE_cur} eV" >> "${out_file}"
+        # exit while loop and exit code with success, can use break to leave while loop but not exit
+        # criterion=0
+        exit 0
+      elif [[ $(echo "${KE_sep} > 1" | bc) -eq 1 || $(echo "${KE_sep} <= 0" | bc) -eq 1 ]]; then
+        KE_cur=$(echo "${KE_cur}-1" | bc)
+        echo "${KE_cur}" >> ${KE_calcs_file}
+        echo "New loop started, trying: ${KE_cur} eV" >> "${out_file}"
+      fi
+    elif [[ $(echo "${Edif} < 1.0" | bc) -eq 1 ]]; then
+      KE_L=${KE_cur}
+      # if there is no defect, check for sep, if sep is 1 stop, if sep is not 1 add 5 and echo to ke file
+      KE_sep=$(echo "${KE_H}-${KE_L}" | bc)
+      echo "KE separation: ${KE_H} - ${KE_L} = ${KE_sep} eV" >> "${out_file}"
+      if [[ $(echo "${KE_sep} == 1" | bc) -eq 1 ]]; then
+        echo "Loop complete, TDE found: ${KE_cur}+1 eV" >> "${out_file}"
+        # exit while loop and exit code with success, can use break to leave while loop but not exit
+        # criterion=0
+        exit 0
+      elif [[ $(echo "${KE_cur} >= ${KE_cutoff}" | bc) -eq 1 ]]; then
+        echo "Loop not complete, TDE above cutoff: ${KE_cur} eV >= ${KE_cutoff} eV" >> "${out_file}"
+        exit 0
+      elif [[ $(echo "${KE_sep} > 1" | bc) -eq 1 || $(echo "${KE_sep} <= 0" | bc) -eq 1 ]]; then
+        KE_cur=$(echo "${KE_cur}+5" | bc)
+        echo "${KE_cur}" >> ${KE_calcs_file}
+        echo "New loop started, trying: ${KE_cur} eV" >> "${out_file}"
+      fi
+    fi
+  elif [ "${conv_mode}" = "midpoint" ]; then
+    if [[ $(echo "${Edif} > 1.0" | bc) -eq 1 ]]; then
+      KE_H=${KE_cur}
+      defect_flag=1
+      KE_sep=$(echo "${KE_H}-${KE_L}" | bc)
+      echo "KE separation: ${KE_H} - ${KE_L} = ${KE_sep} eV" >> "${out_file}"
+      # if there is a defect, check for sep, if sep is 1 stop, if sep is not 1, subtract 1 and echo to ke file
+      if [[ $(echo "${KE_sep} <= 1" | bc) -eq 1 && $(echo "${KE_sep} > 0" | bc) -eq 1 ]]; then
+        echo "Loop complete, TDE found: ${KE_cur} eV" >> "${out_file}"
+        # exit while loop and exit code with success, can use break to leave while loop but not exit
+        # criterion=0
+        exit 0
+      elif [[ $(echo "${KE_sep} > 1" | bc) -eq 1 ]]; then
+        KE_cur=$(echo "${KE_cur}-(${KE_sep}/2)" | bc)
+        echo "${KE_cur}" >> ${KE_calcs_file}
+        echo "New loop started, trying: ${KE_cur} eV" >> "${out_file}"
+      elif [[ $(echo "${KE_sep} <= 0" | bc) -eq 1 ]]; then
+        KE_cur=$(echo "${KE_cur}-8" | bc)
+        echo "${KE_cur}" >> ${KE_calcs_file}
+        echo "New loop started, trying: ${KE_cur} eV" >> "${out_file}"
+      fi
+    elif [[ $(echo "${Edif} < 1.0" | bc) -eq 1 ]]; then
+      KE_L=${KE_cur}
+      # if there is no defect, check for sep, if sep is 1 stop, if sep is not 1 add 5 and echo to ke file
+      KE_sep=$(echo "${KE_H}-${KE_L}" | bc)
+      echo "KE separation: ${KE_H} - ${KE_L} = ${KE_sep} eV" >> "${out_file}"
+      if [[ $(echo "${KE_sep} == 1" | bc) -eq 1 ]]; then
+        echo "Loop complete, TDE found: ${KE_cur}+1 eV" >> "${out_file}"
+        # exit while loop and exit code with success, can use break to leave while loop but not exit
+        # criterion=0
+        exit 0
+      elif [[ $(echo "${KE_cur} >= ${KE_cutoff}" | bc) -eq 1 ]]; then
+        echo "Loop not complete, TDE above cutoff: ${KE_cur} eV >= ${KE_cutoff} eV" >> "${out_file}"
+        exit 0
+      elif [[ $(echo "${KE_sep} > 1" | bc) -eq 1 || $(echo "${KE_sep} <= 0" | bc) -eq 1 ]]; then
+        if [[ $(echo "${defect_flag} > 0" | bc) -eq 1 ]]; then
+          KE_cur=$(echo "${KE_cur}+(${KE_sep}/2)" | bc)
+        else
+          KE_cur=$(echo "${KE_cur}+8" | bc)
+        fi
+        echo "${KE_cur}" >> ${KE_calcs_file}
+        echo "New loop started, trying: ${KE_cur} eV" >> "${out_file}"
+      fi
+    fi
+  else
+    echo "Invalid option argument"
+    pass
+  fi
+done
