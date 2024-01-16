@@ -62,11 +62,12 @@ def vasp_inp_match_check(poscar_filepath, potcar_filepath):
     pos_f.close()
     
     # convert species names line from POSCAR file from Fortran to a list 
-    pos_spec_line = ff.FortranRecordReader('(2A5)')
+    pos_spec_line = ff.FortranRecordReader('(10A5)')  # arbitrarily choose max species number of 10
     pos_species = pos_lines[5]
     pos_spec_list = pos_spec_line.read(pos_species)
     for i in range(len(pos_spec_list)):
         pos_spec_list[i] = pos_spec_list[i].strip()
+    pos_spec_list = list(filter(None, pos_spec_list)) # remove empty values from list
     
     # open POTCAR file and read lines into a list
     pot_f = open(potcar_filepath, 'r')
@@ -127,16 +128,18 @@ def vel_to_POSCAR(vel, atom_type, atom_no, filepath):
     vel_vector = vel_line.write(vel)+'\n'
     
     # convert species names line from POSCAR file from Fortran to a list 
-    spec_line = ff.FortranRecordReader('(2A5)')
+    spec_line = ff.FortranRecordReader('(10A5)')  # arbitrarily choose max species number of 10
     species = f_lines[5]
     spec_list = spec_line.read(species)
     for i in range(len(spec_list)):
         spec_list[i] = spec_list[i].strip()
+    spec_list = list(filter(None, spec_list)) # remove empty values from list
     
     # convert ions per species line from POSCAR file from Fortran to a list
-    no_line = ff.FortranRecordReader('(2I6)')
+    no_line = ff.FortranRecordReader('(10I6)')  # arbitrarily choose max species number of 10
     ion_nos = f_lines[6]
     no_list = no_line.read(ion_nos)
+    no_list = list(filter(None, no_list)) # remove empty values from list
     total_ions = sum(no_list)
     
     # check if empty velocity lines exist, if not, add lines
@@ -196,7 +199,7 @@ lat_vec_line = ff.FortranRecordReader('(3F22.16)')
 lat_vecs = np.array([lat_vec_line.read(ai[j]) for j in range(len(ai))])
 
 # convert species names line from POSCAR file from Fortran to a list
-pos_spec_line = ff.FortranRecordReader('(2A5)')
+pos_spec_line = ff.FortranRecordReader('(10A5)')
 pos_species = pos_lines[5]
 pos_spec_list = pos_spec_line.read(pos_species)
 for i in range(len(pos_spec_list)):

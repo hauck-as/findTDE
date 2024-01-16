@@ -171,25 +171,37 @@ s_directions = np.array([
     [1., 90., 97.5]
 ])"""
 
-ga_s_dirs = np.array([
+ga_s_gan_dirs = np.array([
     [1., 45., 112.5],
     [1., 30., 105.],
     [1., 90., 60.]
 ])
 
-ga_l_dirs = np.array([
+ga_l_gan_dirs = np.array([
     [5, 2, 1],
     [-4, 4, 3],
     [-2, -1, 0]
 ])
 
-n_s_dirs = np.array([
+n_s_gan_dirs = np.array([
     [1., 90., 112.5],
     [1., 90., 97.5]
 ])
 
-n_l_dirs = np.array([
+n_l_gan_dirs = np.array([
     [-1, 1, 0]
+])
+
+al_s_aln_dirs = np.array([
+    [1., 82.5, 52.5],
+    [1., 82.5, 60.],
+    [1., 82.5, 67.5],
+    [1., 82.5, 45.]
+])
+
+n_s_aln_dirs = np.array([
+    [1., 90., 45.],
+    # [1., 90., 112.5]
 ])
 
 # write_sph_dirs(scale_C3z_symmetry(lat2sph(all_tde_data[1], gan_lattice_vecs)), filepath=os.path.relpath('sph_directions.csv', base_path))
@@ -201,9 +213,23 @@ n_l_dirs = np.array([
 # write directions and run find_tde
 # ga 34, n 35
 # find_multiple_tde(s_directions, 'ga', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp')
-find_multiple_tde(ga_s_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=10)
-find_multiple_tde(ga_l_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='L', conv='midpoint', prog='vasp', screen_num=20)
-find_multiple_tde(n_s_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=30)
-find_multiple_tde(n_l_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='L', conv='midpoint', prog='vasp', screen_num=40)
-# find_multiple_tde(sph_directions_ext_s2, 'al', 34, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=300)
-# find_multiple_tde(sph_directions_ext_s2, 'n', 35, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=700)
+
+# calculate lowest energy directions from GaN/AlN calcs, both Ga/Al & N knockouts, in VASP
+find_multiple_tde(ga_s_gan_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4410)
+find_multiple_tde(ga_l_gan_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='L', conv='midpoint', prog='vasp', screen_num=4420)
+find_multiple_tde(n_s_gan_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4430)
+find_multiple_tde(n_l_gan_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='L', conv='midpoint', prog='vasp', screen_num=4440)
+find_multiple_tde(al_s_aln_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4450)
+find_multiple_tde(n_s_aln_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4460)
+
+# calculate extended spherical direction mesh in LAMMPS
+# find_multiple_tde(sph_directions_ext_s3, 'ga', 34, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=1100)
+# find_multiple_tde(sph_directions_ext_s3, 'n', 35, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=1400)
+
+# calculate lowest energy directions from GaN/AlN calcs, both Ga/Al & N knockouts, in LAMMPS
+# find_multiple_tde(ga_s_gan_dirs, 'al', 34, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7010)
+# find_multiple_tde(ga_l_gan_dirs, 'al', 34, ke_i=10, ke_cut=100, mode='L', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7020)
+# find_multiple_tde(n_s_gan_dirs, 'n', 35, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7030)
+# find_multiple_tde(n_l_gan_dirs, 'n', 35, ke_i=10, ke_cut=100, mode='L', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7040)
+# find_multiple_tde(al_s_aln_dirs, 'al', 34, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7050)
+# find_multiple_tde(n_s_aln_dirs, 'n', 35, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7060)
