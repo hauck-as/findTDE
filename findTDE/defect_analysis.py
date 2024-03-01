@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Python module used to characterize defects resulting from TDE calculations."""
 import os
+import sys
+import glob
 import pprint
 import fortranformat as ff
 
@@ -8,20 +10,22 @@ import math
 import numpy as np
 import pandas as pd
 
+import warnings
+warnings.filterwarnings('ignore', message='.*OVITO.*PyPI')
+
+import ovito._extensions.pyscript
+
 from ovito.io import *
 from ovito.data import *
 from ovito.modifiers import *
 from ovito.pipeline import *
-
-base_path = os.getcwd()
-poscar_path, defects_path = os.path.join(base_path, 'inp/POSCAR'), os.path.join(base_path, 'defect_analysis')
 
 
 def find_contcars(base_path, pseudo='*'):
     """
     Function to create an array of post-CGM CONTCAR files for defect analysis.
     """
-    contcar_files = np.array(glob.glob(os.path.join(base_path, pseudo+'/*/cgm/CONTCAR'), recursive=True))
+    contcar_files = np.array(glob.glob(os.path.join(base_path, pseudo, '*', 'cgm', 'CONTCAR'), recursive=True))
     return contcar_files
 
 
@@ -29,8 +33,18 @@ def find_dumpfiles(base_path, pseudo='*'):
     """
     Function to create an array of post-MD dump files for defect analysis.
     """
-    dump_files = np.array(glob.glob(os.path.join(base_path, pseudo+'/*/dump.final'), recursive=True))
+    dump_files = np.array(glob.glob(os.path.join(base_path, pseudo, '*', 'dump.final'), recursive=True))
     return dump_files
+
+
+def pseudo_keys_from_file(pseudo_keyfile='pseudo_keys.csv'):
+    """
+    Function to convert a CSV file of pseudo keys to a dictionary.
+    """
+    pk_df = pd.read_csv(pseudo_keyfile, index_col=0)
+    pks_dict = pk_df.to_dict('split')
+    pks_dict = dict(zip(pks_dict['index'], pks_dict['data']))
+    return pks_dict
 
 
 def PBC_distance(x0, x1, dimensions):
@@ -43,16 +57,6 @@ def PBC_distance(x0, x1, dimensions):
     delta = np.abs(x0 - x1)
     delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta)
     return np.sqrt((delta ** 2).sum(axis=-1))
-
-
-def pseudo_keys_from_file(pseudo_keyfile='pseudo_keys.csv'):
-    """
-    Function to convert a CSV file of pseudo keys to a dictionary.
-    """
-    pk_df = pd.read_csv(pseudo_keyfile, index_col=0)
-    pks_dict = pk_df.to_dict('split')
-    pks_dict = dict(zip(pks_dict['index'], pks_dict['data']))
-    return pks_dict
 
 
 ###########################################################################
@@ -78,7 +82,7 @@ def find_defects_multi_files(base_pos_path, cont_paths):
     return defect_pos
 
 
-def fp_sep_dist(base_pos_path, cont_paths, atom_type='ga', atom_no=34, lattice_vecs=gan_lattice_vecs):
+def fp_sep_dist(base_pos_path, cont_paths, lattice_vecs, atom_type='ga', atom_no=34):
     """
     Given an initial POSCAR file and any number of post-AIMD, post-CGM CONTCAR files, returns the
     Frenkel pair separation distance after determining defect positions in the structure. File
@@ -122,7 +126,7 @@ def fp_sep_dist(base_pos_path, cont_paths, atom_type='ga', atom_no=34, lattice_v
 
 # print('######################## PYMATGEN DEFECTS ANALYSIS ########################')
 # print(find_defects_multi_files(poscar_path, contcar_paths)@gan_lattice_vecs)
-# print(fp_sep_dist(poscar_path, contcar_paths, atom_type='ga', atom_no=34, lattice_vecs=gan_lattice_vecs))
+# print(fp_sep_dist(poscar_path, contcar_paths, gan_lattice_vecs, atom_type='ga', atom_no=34))
 
 ###########################################################################
 ############################ OVITO WS ANALYSIS ############################
@@ -162,7 +166,7 @@ main issues currently:    <---- this was for the previous version of this file, 
 - also potential issues with runs like the [120] direction (17L?) where ovito recognizes 2 FPs (1 Ga, 1 N) as 1 FP
 - need to bring in other info such as direction associated with pseudo (should be easy, use key_dict again)
 """
-def defect_analysis(defect_file,ref_file):
+def defect_analysis(defect_file, ref_file, verbose=False):
     """
     Perform WS analyses
     """
@@ -210,25 +214,25 @@ def defect_analysis(defect_file,ref_file):
         nAvac = np.sum((site_type == 1) & (total_occupancy == 0))
         nBvac = np.sum((site_type == 2) & (total_occupancy == 0))
         nvac = data.attributes['WignerSeitz.vacancy_count']
-        print('\nIdenfity %d vacancies, including %d type1 and %d type2'%(nvac,nAvac,nBvac))
-        print('type1 vacancy site positions:')
+        print('\nIdenfity %d vacancies, including %d type1 and %d type2'%(nvac,nAvac,nBvac)) if verbose else None
+        print('type1 vacancy site positions:') if verbose else None
         Avac_pos = site_pos[(site_type == 1) & (total_occupancy == 0)]
-        print(Avac_pos)
-        print('type2 vacancy site positions:')
+        print(Avac_pos) if verbose else None
+        print('type2 vacancy site positions:') if verbose else None
         Bvac_pos = site_pos[(site_type == 2) & (total_occupancy == 0)]
-        print(Bvac_pos)
+        print(Bvac_pos) if verbose else None
         ws_dict['nAvac'], ws_dict['nBvac'], ws_dict['Avac_pos'], ws_dict['Bvac_pos'] = nAvac, nBvac, Avac_pos, Bvac_pos
 
         ######## get antisite information ########
         B2A = np.sum((site_type == 1) & (occupancies[:,1] == 1) & (total_occupancy == 1))
         A2B = np.sum((site_type == 2) & (occupancies[:,0] == 1) & (total_occupancy == 1))
-        print('\nIdenfity %d antisites, including %d type1occupy2 and %d type2occupy1'%(B2A+A2B,A2B,B2A))
-        print('type2occupy1 site positions:')
+        print('\nIdenfity %d antisites, including %d type1occupy2 and %d type2occupy1'%(B2A+A2B,A2B,B2A)) if verbose else None
+        print('type2occupy1 site positions:') if verbose else None
         B2A_pos = site_pos[(site_type == 1) & (occupancies[:,1] == 1) & (total_occupancy == 1)]
-        print(B2A_pos)
-        print('type1occupy2 site positions:')
+        print(B2A_pos) if verbose else None
+        print('type1occupy2 site positions:') if verbose else None
         A2B_pos = site_pos[(site_type == 2) & (occupancies[:,0] == 1) & (total_occupancy == 1)]
-        print(A2B_pos)
+        print(A2B_pos) if verbose else None
         ws_dict['nB2A'], ws_dict['nA2B'], ws_dict['B2A_pos'], ws_dict['A2B_pos'] = B2A, A2B, B2A_pos, A2B_pos
 
         ######## get interstitial information ########
@@ -238,7 +242,7 @@ def defect_analysis(defect_file,ref_file):
         ws_dict['Aint_pos'], ws_dict['Bint_pos'] = [np.empty((0, 3), dtype=np.float64) for n in range(0, 2)]
         ws_dict['nAint'], ws_dict['nBint'] = 0, 0  # np.array([[]])
         for i,pos in enumerate(int_sites):
-            print('\nIntersitial at site',pos,'with site type=',int_site_types[i])
+            print('\nIntersitial at site',pos,'with site type=',int_site_types[i]) if verbose else None
             if int_site_types[i] == 1 and pos not in ws_dict['Aint_pos']:
                 ws_dict['Aint_pos'] = np.append(ws_dict['Aint_pos'], np.array([pos]), axis=0)
                 ws_dict['nAint'] += 1
@@ -254,17 +258,17 @@ def defect_analysis(defect_file,ref_file):
 
         return ws_dict
 
-    print('######## Wigner-Seitz Analysis (Sites) ########')
+    print('######## Wigner-Seitz Analysis (Sites) ########') if verbose else None
     ws_comb_dict['sites'] = get_defects_from_WS(output_sites)
 
     # Update Wigner-Seitz analysis (atoms mode):
     pipeline.modifiers[0].output_displaced = True
     output_atoms = pipeline.compute()
 
-    print('######## Wigner-Seitz Analysis (Atoms) ########')
+    print('######## Wigner-Seitz Analysis (Atoms) ########') if verbose else None
     ws_comb_dict['atoms'] = get_defects_from_WS(output_atoms)
 
-    pprint.pprint(ws_comb_dict)
+    pprint.pprint(ws_comb_dict) if verbose else None
 
     # Compare both Wigner-Seitz analyses, return cross-analyzed data
     defect_dict = {
@@ -440,19 +444,27 @@ def average_tde_vals(defects_dict, pseudo_keys, dir_range=((0, 360), (0, 180))):
         'E_d_avg_A': [],
         'E_d_avg_B': []
     }
+    
+    cnt_A_FP, cnt_B_FP, cnt_complex, cnt_oor = 0, 0, 0, 0
 
     for key in defects_dict.keys():
         # check the direction and pass if outside of range
         phi, theta = pseudo_keys[key]
-        print(phi, theta)
+        # print(phi, theta)
         if (phi < dir_range[0][0]) or (phi > dir_range[0][1]) or (theta < dir_range[1][0]) or (theta > dir_range[1][1]):
-            pass
+            cnt_oor += 1
+            continue
 
         # check the resultant defect type
         if (defects_dict[key]['nAint'] > 0) and (defects_dict[key]['nAvac'] > 0):
             defect_type = 'A'
+            cnt_A_FP += 1
         elif (defects_dict[key]['nBint'] > 0) and (defects_dict[key]['nBvac'] > 0):
             defect_type = 'B'
+            cnt_B_FP += 1
+        else:
+            cnt_complex += 1
+            continue
         
         # categorize TDE values by the defect type
         tde_averages[f'E_d_avg_{defect_type}'].append(defects_dict[key]['E_d'])
@@ -460,6 +472,8 @@ def average_tde_vals(defects_dict, pseudo_keys, dir_range=((0, 360), (0, 180))):
     # average the TDE values for each defect type
     for key in tde_averages.keys():
         tde_averages[key] = np.mean(tde_averages[key])
+    
+    print('A FPs:', cnt_A_FP, '\tB FPs:', cnt_B_FP, '\tOther:', cnt_complex, '\tOut of range:', cnt_oor)
 
     return tde_averages
 
@@ -510,22 +524,12 @@ def parse_defect_properties(defects_dict, atom_types=['Ga', 'N']):
 
 #####command: ovitos xx.py
 if __name__ == "__main__":
-    FILES_LOC = os.path.dirname(__file__)
+    FILES_LOC = os.getcwd()    # os.path.dirname(__file__)
 
-    defect_files = np.array([
-        os.path.join(FILES_LOC, '160S_ga34_lmp_26eV/dump.final'),
-        os.path.join(FILES_LOC, '247S_n35_lmp_14eV/dump.final')
-        #os.path.join(FILES_LOC, '57S_ga34_25eV/CONTCAR'),
-        #os.path.join(FILES_LOC, '6L_ga34_-443_26eV/CONTCAR'),
-        #os.path.join(FILES_LOC, '27L_ga34_521_26eV/CONTCAR'),
-        #os.path.join(FILES_LOC, '60S_n35_15eV/CONTCAR'),
-        #os.path.join(FILES_LOC, '75L_n35_-110_16eV/CONTCAR')
-        # os.path.join(FILES_LOC, 'prev_calcs/CONTCAR_-443_25eV'),
-        # os.path.join(FILES_LOC, 'prev_calcs/CONTCAR_521_26eV'),
-        # os.path.join(FILES_LOC, 'prev_calcs/CONTCAR_-2-10_27eV')
-    ])
+    defect_files = find_dumpfiles(FILES_LOC, pseudo='*ga34*')    # test with 10*S_ga34*
+    # pprint.pprint(defect_files)
     
-    vasp_ref_file, lmp_ref_file = os.path.join(FILES_LOC, 'POSCAR'), os.path.join(FILES_LOC, 'read_data.lmp')
+    vasp_ref_file, lmp_ref_file = os.path.join(FILES_LOC, 'inp', 'POSCAR'), os.path.join(FILES_LOC, 'inp', 'read_data_perfect.lmp')
     pos_f = open(vasp_ref_file, 'r')
     pos_lines = pos_f.readlines()
     pos_f.close()
@@ -541,21 +545,18 @@ if __name__ == "__main__":
     defect_configs_dict = {}
 
     for i in range(defect_files.shape[0]):
-        calc_desc = defect_files[i].split('\\')[-1].split('/')[-2]
-        print(calc_desc)
-        calc_pseudo, calc_tde = calc_desc.split('_')[0], int(calc_desc.split('_')[-1][:-2])
-
-        # calc_desc = defect_files[i].split('/')[-1]
-        # calc_dir, calc_tde = calc_desc.split('_')[-2], int(calc_desc.split('_')[-1][:-2])
+        calc_desc, calc_tde = defect_files[i].split('/')[-3], int(defect_files[i].split('/')[-2][:-2])
+        calc_pseudo = calc_desc.split('_')[0]
+        # print(calc_desc, ': ', calc_tde, ' eV', sep='')
 
         defect_configs_dict[calc_pseudo] = defect_analysis(defect_files[i], lmp_ref_file)
         defect_configs_dict[calc_pseudo]['E_d'] = calc_tde
-    
-    print('############################ OVITO WS ANALYSIS ############################')
-    pprint.pprint(defect_configs_dict)
+
+    print('############################ OVITO WS ANALYSIS SUMMARY ############################')
+    # pprint.pprint(defect_configs_dict)
 
     gan_pseudo_keys = pseudo_keys_from_file(pseudo_keyfile=os.path.join(FILES_LOC, 'gan_lmp_pseudo_keys.csv'))
-    pprint.pprint(average_tde_vals(defect_configs_dict, gan_pseudo_keys, dir_range=((90, 210), (0, 180))))
+    pprint.pprint(average_tde_vals(defect_configs_dict, gan_pseudo_keys, dir_range=((90, 150), (0, 180))))
 
     # defect_configs_df = parse_defect_properties(defect_configs_dict, atom_types=['Ga', 'N']).T
     # pprint.pprint(defect_configs_df)
