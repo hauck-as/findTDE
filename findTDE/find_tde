@@ -100,6 +100,9 @@ mkdir -p "${tde_run_path}"
 
 # file showing script progress output info
 out_file="${tde_run_path}${latt_dir_pseudo}_${atom_type}${atom_num}_out.txt"
+# remove out_file if it already exists
+[ -f ${out_file} ] && rm ${out_file}
+# write file header
 cat << EOF >> "${out_file}"
 Lattice Direction Pseudo: ${latt_dir_pseudo}
 Atom....................: ${atom_type}
@@ -117,6 +120,9 @@ echo "==========================="
 
 # file showing delimited output data
 out_data_file="${tde_run_path}${latt_dir_pseudo}_${atom_type}${atom_num}_data.csv"
+# remove out_data_file if it already exists
+[ -f ${out_data_file} ] && rm ${out_data_file}
+# write file header
 echo "Lattice Direction Pseudo, Atom Type, Atom Number, KE, Final Energy (eV), Delta Energy (eV)" >> "${out_data_file}"
 
 ########################################
@@ -146,7 +152,7 @@ echo "KE: ${KE_i} eV, run number 1" >> "${out_file}"
 while true; do
 # check file to see if this run is first run or subsequent
   cd ${base_path} || exit
-  num_KE=$(wc -l "${KE_calcs_file}" | cut -c1)
+  num_KE=$(wc -l "${KE_calcs_file}" | cut -d " " -f 1)
 
   # if not first run
   if [ ${num_KE} -gt 1 ]; then
