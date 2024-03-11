@@ -38,9 +38,9 @@ def write_find_tde_calcs(direction, atom_type, atom_number, ke_i=25, ke_cut=40, 
                     n = re.split(r'[;,\s]\s*', line)[0][:-1]
         n_prev_max = int(np.amax(np.array((n_all), dtype=int)))
         if n != 0:
-            ld_f.write(', '.join(['\n'+str(n)+mode, atom_type, str(atom_number), str(ke_i), str(ke_cut), str(direction[0]), str(direction[1]), str(direction[2])]))
+            ld_f.write(', '.join(['\n'+str(n)+str(mode), str(atom_type), str(atom_number), str(ke_i), str(ke_cut), str(direction[0]), str(direction[1]), str(direction[2])]))
         else:
-            ld_f.write(', '.join(['\n'+str(1+n_prev_max)+mode, atom_type, str(atom_number), str(ke_i), str(ke_cut), str(direction[0]), str(direction[1]), str(direction[2])]))
+            ld_f.write(', '.join(['\n'+str(1+n_prev_max)+str(mode), str(atom_type), str(atom_number), str(ke_i), str(ke_cut), str(direction[0]), str(direction[1]), str(direction[2])]))
         ld_f.close()
     
     # if file does not exist, create file with header and add direction to it
@@ -48,7 +48,7 @@ def write_find_tde_calcs(direction, atom_type, atom_number, ke_i=25, ke_cut=40, 
         ld_f = open(directions_filepath, 'w+')
         print('Creating new file')
         ld_f.write(lat_dir_list_header_text)
-        ld_f.write(', '.join(['\n'+str(1)+mode, atom_type, str(atom_number), str(ke_i), str(ke_cut), str(direction[0]), str(direction[1]), str(direction[2])]))
+        ld_f.write(', '.join(['\n'+str(1)+str(mode), str(atom_type), str(atom_number), str(ke_i), str(ke_cut), str(direction[0]), str(direction[1]), str(direction[2])]))
         ld_f.close()
     
     return
@@ -127,6 +127,87 @@ def write_sph_dirs(rpt, directions_filepath=os.path.relpath('sph_directions.csv'
     return
 
 
+def rewrite_find_tde_calcs_keys(base_path=os.getcwd(), directions_filename='latt_dirs_to_calc.csv', ke_cut=45):
+    """
+    Writes the text file used by find_tde to perform calculations. Requires a direction list (L or S)
+    as well as the atom type (string) and number (int), uses 25 eV initial KE and lattice direction
+    mode by default (can use any integer KE or spherical direction mode (S)).
+    """
+    directions_filepath=os.path.join(base_path, directions_filename)
+    data_files = glob.glob(base_path+'*/*_out.txt', recursive=True)
+    
+    lat_dir_list_header_text = '########################################\n' + \
+    '# format of text file\n' + \
+    '# nL    atom_type    atom_number    ke_i    ke_cut    u    v    w\n' + \
+    '# n+1S    atom_type    atom_number    ke_i    ke_cut    r    p    t\n' + \
+    '########################################'
+    
+    if os.path.isfile(directions_filepath):
+        lat_dir_list_lines = []
+    else:
+        lat_dir_list_lines = [lat_dir_list_header_text]
+    
+    for i in range(len(data_files)):
+        pseudo = re.search(r'\d+\w', subprocess.run(['grep', 'Lattice Direction Pseudo:', data_files[i]], capture_output = True, text = True).stdout.split('\n')[0]).group()
+        atom_type = subprocess.run(['grep', 'Atom....................:', data_files[i]], capture_output = True, text = True).stdout.split('\n')[0].split(': ')[-1]
+        atom_number = re.search(r'\d+', subprocess.run(['grep', 'Atom Number.............:', data_files[i]], capture_output = True, text = True).stdout).group()
+        ke_i = re.search(r'\d+', subprocess.run(['grep', 'KE:', data_files[i]], capture_output = True, text = True).stdout.split('\n')[0]).group()
+        v_direction = re.split(r'[\s]\s*', subprocess.run(['grep', 'direction:', data_files[i]], capture_output = True, text = True).stdout.split('\n')[0].split(': ')[-1].replace('[', '').replace(']', '').strip())
+        pseudo_line = ', '.join(['\n'+pseudo, atom_type, atom_number, ke_i, str(ke_cut), str(v_direction[0]), str(v_direction[1]), str(v_direction[2])])
+        lat_dir_list_lines.append(pseudo_line)
+    
+    ld_f = open(directions_filepath, 'a+')
+    for line in lat_dir_list_lines:
+        ld_f.write(line)
+    ld_f.close()
+    
+    return
+
+
+def split_pseudo_atom_info(pseudo_atoms, pseudo_keyfile, savefile=False):
+    """
+    Function to split pseudo_atom info and determine direction associated with pseudo.
+    Returns array with information.
+    """
+    # empty array for findTDE run info
+    converted_pa_info = np.zeros(pseudo_atoms.shape[0], dtype=[('direction', list), ('atom_type', '<U4'), ('atom_num', '<i4'), ('dir_mode', 'U1')])
+    
+    # read in pseudo keys from file into dict
+    pseudo_keys = pseudo_keys_from_file(pseudo_keyfile=pseudo_keyfile)
+    
+    for i in range(pseudo_atoms.shape[0]):
+        # split pseudo_atoms
+        pseudo, atom_info = pseudo_atoms[i].rsplit('_', 1) # string for pseudo and atom type/number
+        atom_type, atom_num = re.search(r'\D+', atom_info).group(), int(re.search(r'\d+', atom_info).group())    # specified atom type and number for findTDE run
+        dir_mode = pseudo[-1]
+        
+        pseudo_direction = ((1.,) + tuple(pseudo_keys[pseudo]))
+        converted_pa_info[i] = (pseudo_direction, atom_type, atom_num, dir_mode)
+    
+    if savefile == False:
+        pass
+    elif type(savefile) == str:
+        np.savetxt(savefile, converted_pa_info, delimiter=';', fmt=['%s', '%s', '%d', '%s'])
+    else:
+        raise TypeError('Savefile name must be a valid string')
+    
+    return converted_pa_info
+
+
+def read_pseudo_atom_info(pseudo_atom_filename):
+    """
+    Read pseudo_atom info into structured numpy array to be used for running findTDE.
+    """
+    # read in info into numpy array from txt file
+    pa_info_arr = np.genfromtxt(pseudo_atom_filename, delimiter=';', dtype=[('direction', tuple), ('atom_type', '<U4'), ('atom_num', '<i4'), ('dir_mode', 'U1')])
+    
+    # decode direction tuple byte string into tuple
+    for i in range(pa_info_arr.shape[0]):
+        pa_info_arr[i]['direction'] = eval(pa_info_arr[i]['direction'].decode('utf-8'))
+    
+    return pa_info_arr
+
+
 # generate directions for calculations
 """l_directions = np.array([
     [-1, 4, 1],
@@ -171,6 +252,7 @@ s_directions = np.array([
     [1., 90., 97.5]
 ])"""
 
+"""
 ga_s_gan_dirs = np.array([
     [1., 45., 112.5],
     [1., 30., 105.],
@@ -203,24 +285,28 @@ n_s_aln_dirs = np.array([
     [1., 90., 45.],
     # [1., 90., 112.5]
 ])
+"""
 
 # write_sph_dirs(scale_C3z_symmetry(lat2sph(all_tde_data[1], gan_lattice_vecs)), filepath=os.path.relpath('sph_directions.csv', base_path))
 # sph_directions = np.genfromtxt(os.path.relpath('sph_directions.csv', base_path), delimiter=',', comments='#', skip_header=4)
 # sph_directions_ext_s1 = np.genfromtxt(os.path.relpath('sph_directions_ext_set1.csv', base_path), delimiter=',', comments='#', skip_header=4)
 # sph_directions_ext_s2 = np.genfromtxt(os.path.relpath('sph_directions_ext_set2.csv', base_path), delimiter=',', comments='#', skip_header=4)
 # sph_directions_ext_s3 = np.genfromtxt(os.path.relpath('sph_directions_ext_set3.csv', base_path), delimiter=',', comments='#', skip_header=4)
+aln_redo_info = read_pseudo_atom_info(os.path.join(base_path, 'aln_lmp_errs_run_info.txt'))
+for i in range(aln_redo_info.shape[0]):
+    find_multiple_tde(np.array([aln_redo_info[i]['direction']]), aln_redo_info[i]['atom_type'], aln_redo_info[i]['atom_num'], ke_i=10, ke_cut=100, mode=aln_redo_info[i]['dir_mode'], conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=30)
 
 # write directions and run find_tde
 # ga 34, n 35
 # find_multiple_tde(s_directions, 'ga', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp')
 
 # calculate lowest energy directions from GaN/AlN calcs, both Ga/Al & N knockouts, in VASP
-find_multiple_tde(ga_s_gan_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4410)
-find_multiple_tde(ga_l_gan_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='L', conv='midpoint', prog='vasp', screen_num=4420)
-find_multiple_tde(n_s_gan_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4430)
-find_multiple_tde(n_l_gan_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='L', conv='midpoint', prog='vasp', screen_num=4440)
-find_multiple_tde(al_s_aln_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4450)
-find_multiple_tde(n_s_aln_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4460)
+# find_multiple_tde(ga_s_gan_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4410)
+# find_multiple_tde(ga_l_gan_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='L', conv='midpoint', prog='vasp', screen_num=4420)
+# find_multiple_tde(n_s_gan_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4430)
+# find_multiple_tde(n_l_gan_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='L', conv='midpoint', prog='vasp', screen_num=4440)
+# find_multiple_tde(al_s_aln_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4450)
+# find_multiple_tde(n_s_aln_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4460)
 
 # calculate extended spherical direction mesh in LAMMPS
 # find_multiple_tde(sph_directions_ext_s3, 'ga', 34, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=1100)
