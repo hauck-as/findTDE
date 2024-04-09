@@ -59,6 +59,31 @@ def PBC_distance(x0, x1, dimensions):
     return np.sqrt((delta ** 2).sum(axis=-1))
 
 
+def cart2sph(x, y, z):
+    dxy = np.sqrt(x**2 + y**2)
+    r = np.sqrt(dxy**2 + z**2)
+    theta = np.arctan2(y, x)
+    phi = np.arctan2(dxy, z)
+    theta, phi = np.rad2deg([theta, phi])
+    return r, theta % 360, phi
+
+
+def lat2sph(uvw, ai):
+    """
+    Function converting from lattice directions to spherical coordinates. Given two 2D
+    arrays, one for lattice directions and one for lattice vectors, returns a 2D array
+    of the spherical coordinates corresponding to the lattice directions.
+    """
+    xyz, rpt = np.zeros(uvw.shape), np.zeros(uvw.shape)
+    
+    for i in range(uvw.shape[0]):
+        xyz[i, :] = uvw[i, :]@ai
+        rpt[i, :] = np.around(cart2sph(xyz[i, 0], xyz[i, 1], xyz[i, 2]), decimals=2)
+        rpt[i, 0] = 1.00
+    
+    return rpt
+
+
 ###########################################################################
 ######################## PYMATGEN DEFECTS ANALYSIS ########################
 ###########################################################################
@@ -433,24 +458,75 @@ def defect_analysis(defect_file, ref_file, verbose=False):
 
 
 ######################################
+# function to determine TDE from a single datafile
+######################################
+def get_tde_from_datafile(data_filepath='*_data.csv', e_tol=1.0, ke_cut=45):
+    """
+    Scans a findTDE *_data.csv file and returns the TDE value for the specified knockout type.
+    """
+    # read in tde data into structured array
+    tde_data = np.genfromtxt(data_filepath, delimiter=', ', skip_header=1,
+                             dtype=[('pseudo', '<U4'), ('atom_type', '<U4'), ('atom_num', '<i4'),
+                                ('ke', '<i4'), ('e_fin', '<f8'), ('dE', '<f8')]
+                            )
+    
+    # sort array from lowest KE to highest KE
+    tde_data = np.sort(tde_data, order='ke')
+    
+    # find TDE value from energy difference
+    # first KE corresponding to a dE > e_tol is the TDE in the sorted array
+    tde_value = 0
+    for i in range(tde_data.shape[0]):
+        if np.isnan(tde_data[i]['dE']) == True:
+            continue
+        elif tde_data[i]['dE'] > e_tol:
+            if tde_data[i]['ke'] <= ke_cut:
+                tde_value = tde_data[i]['ke']
+            elif tde_data[i]['ke'] > ke_cut:
+                tde_value = ke_cut
+            break
+        else:
+            tde_value = ke_cut
+    
+    return tde_value
+
+
+######################################
 # function to average TDE values for each atom type for a given direction range
 # function currently assumes rad-induced defect config is Frenkel pair
 ######################################
-def average_tde_vals(defects_dict, pseudo_keys, dir_range=((0, 360), (0, 180))):
+def average_tde_vals(defects_dict, pseudo_keys, lattice_vecs, dir_range=((0, 360), (0, 180))):
     """
     Function to average the TDE values for each atom type over the given range of directions.
     """
     tde_averages = {
-        'E_d_avg_A': [],
-        'E_d_avg_B': []
+        'avg': {
+            'E_d_avg_A': [],
+            'E_d_avg_B': []
+        },
+        'std': {
+            'E_d_std_A': [],
+            'E_d_std_B': []
+        },
+        'weights': {
+            'E_d_wi_A': [],
+            'E_d_wi_B': []
+        }
     }
     
-    cnt_A_FP, cnt_B_FP, cnt_complex, cnt_oor = 0, 0, 0, 0
+    cnt_A_FP, cnt_B_FP, cnt_complex, cnt_oor, cnt_cutoff = 0, 0, 0, 0, 0
+    # need variable dtheta, dphi
+    dtheta, dphi = np.deg2rad(7.5), np.deg2rad(7.5)
 
     for key in defects_dict.keys():
         # check the direction and pass if outside of range
-        phi, theta = pseudo_keys[key]
-        # print(phi, theta)
+        if key[-1] == 'S':
+            phi, theta = pseudo_keys[key][0], pseudo_keys[key][1]
+        elif key[-1] == 'L':
+            phi, theta = lat2sph(np.array([pseudo_keys[key]]), lattice_vecs)[0][1], lat2sph(np.array([pseudo_keys[key]]), lattice_vecs)[0][2]
+        else:
+            raise ValueError('Incorrect direction pseudo.')
+        
         if (phi < dir_range[0][0]) or (phi > dir_range[0][1]) or (theta < dir_range[1][0]) or (theta > dir_range[1][1]):
             cnt_oor += 1
             continue
@@ -463,15 +539,27 @@ def average_tde_vals(defects_dict, pseudo_keys, dir_range=((0, 360), (0, 180))):
             defect_type = 'B'
             cnt_B_FP += 1
         else:
+            #print('{} --> Other type: nAint = {}, nAvac = {}, nBint = {}, nBvac = {}'.format(key, defects_dict[key]['nAint'], defects_dict[key]['nAvac'], defects_dict[key]['nBint'], defects_dict[key]['nBvac']))
+            #print(defects_dict[key])
             cnt_complex += 1
             continue
         
         # categorize TDE values by the defect type
-        tde_averages[f'E_d_avg_{defect_type}'].append(defects_dict[key]['E_d'])
+        tde_averages['avg'][f'E_d_avg_{defect_type}'].append(defects_dict[key]['E_d'])
+        tde_averages['weights'][f'E_d_wi_{defect_type}'].append(np.sin(np.deg2rad(theta))*dtheta*dphi)
+    
+    # find standard deviation of the TDE values for each defect type
+    for key in tde_averages['std'].keys():
+        tde_averages['std'][key] = np.std(tde_averages['avg'][key.replace('std', 'avg')], dtype=np.float64)
     
     # average the TDE values for each defect type
-    for key in tde_averages.keys():
-        tde_averages[key] = np.mean(tde_averages[key])
+    for key in tde_averages['avg'].keys():
+        # standard average
+        # tde_averages['avg'][key] = np.mean(tde_averages['avg'][key], dtype=np.float64)
+        
+        # weighted average
+        tde_averages['avg'][key] = np.average(tde_averages['avg'][key], weights=tde_averages['weights'][key.replace('avg', 'wi')])
+    del tde_averages['weights']
     
     print('A FPs:', cnt_A_FP, '\tB FPs:', cnt_B_FP, '\tOther:', cnt_complex, '\tOut of range:', cnt_oor)
 
@@ -525,11 +613,20 @@ def parse_defect_properties(defects_dict, atom_types=['Ga', 'N']):
 #####command: ovitos xx.py
 if __name__ == "__main__":
     FILES_LOC = os.getcwd()    # os.path.dirname(__file__)
+    
+    run_type, knockout_atom = 'vasp', 'ga34'
 
-    defect_files = find_dumpfiles(FILES_LOC, pseudo='*ga34*')    # test with 10*S_ga34*
+    if run_type == 'vasp':
+        defect_files = find_contcars(FILES_LOC, pseudo=f'*{knockout_atom}*')
+    elif run_type == 'lammps':
+        defect_files = find_dumpfiles(FILES_LOC, pseudo=f'*{knockout_atom}*')    # test with 10*S_ga34*
     # pprint.pprint(defect_files)
     
-    vasp_ref_file, lmp_ref_file = os.path.join(FILES_LOC, 'inp', 'POSCAR'), os.path.join(FILES_LOC, 'inp', 'read_data_perfect.lmp')
+    # read in VASP and LAMMPS perfect structure information
+    if run_type == 'vasp':
+        vasp_ref_file = os.path.join(FILES_LOC, 'inp', 'POSCAR')
+    elif run_type == 'lammps':
+        vasp_ref_file, lmp_ref_file = os.path.join(FILES_LOC, 'inp', 'POSCAR'), os.path.join(FILES_LOC, 'inp', 'read_data_perfect.lmp')
     pos_f = open(vasp_ref_file, 'r')
     pos_lines = pos_f.readlines()
     pos_f.close()
@@ -539,24 +636,49 @@ if __name__ == "__main__":
 
     # convert lattice vectors line from POSCAR file from Fortran to a list
     lat_vec_line = ff.FortranRecordReader('(3F22.16)')
-    gan_lattice_vecs = np.array([lat_vec_line.read(ai[j]) for j in range(len(ai))])
-    gan_params = np.array([np.linalg.norm(gan_lattice_vecs[0, :]), np.linalg.norm(gan_lattice_vecs[1, :]), np.linalg.norm(gan_lattice_vecs[2, :])])
+    vasp_lattice_vecs = np.array([lat_vec_line.read(ai[j]) for j in range(len(ai))])
+    vasp_params = np.array([np.linalg.norm(vasp_lattice_vecs[0, :]), np.linalg.norm(vasp_lattice_vecs[1, :]), np.linalg.norm(vasp_lattice_vecs[2, :])])
 
+    # add analysis information for each direction to a dict
     defect_configs_dict = {}
 
     for i in range(defect_files.shape[0]):
-        calc_desc, calc_tde = defect_files[i].split('/')[-3], int(defect_files[i].split('/')[-2][:-2])
-        calc_pseudo = calc_desc.split('_')[0]
-        # print(calc_desc, ': ', calc_tde, ' eV', sep='')
-
-        defect_configs_dict[calc_pseudo] = defect_analysis(defect_files[i], lmp_ref_file)
-        defect_configs_dict[calc_pseudo]['E_d'] = calc_tde
+        if run_type == 'vasp':
+            calc_desc, calc_tde = defect_files[i].split('/')[-4], int(defect_files[i].split('/')[-3][:-2])
+            calc_pseudo, calc_atom_info = calc_desc.split('_')[0], calc_desc.split('_')[1]
+            
+            # get TDE value for direction from data file
+            pseudo_datafile = os.path.abspath(os.path.join(defect_files[i], os.pardir, os.pardir, os.pardir, calc_pseudo+'_'+calc_atom_info+'_data.csv'))
+            pseudo_tde_value = get_tde_from_datafile(pseudo_datafile, e_tol=1.0, ke_cut=45)
+        elif run_type == 'lammps':
+            calc_desc, calc_tde = defect_files[i].split('/')[-3], int(defect_files[i].split('/')[-2][:-2])
+            calc_pseudo, calc_atom_info = calc_desc.split('_')[0], calc_desc.split('_')[1]
+            
+            # get TDE value for direction from data file
+            pseudo_datafile = os.path.abspath(os.path.join(defect_files[i], os.pardir, os.pardir, calc_pseudo+'_'+calc_atom_info+'_data.csv'))
+            pseudo_tde_value = get_tde_from_datafile(pseudo_datafile, e_tol=1.0, ke_cut=100)
+        
+        # print(calc_desc, ': ', calc_tde, ' eV\t (TDE: ', pseudo_tde_value, ' eV)' sep='')
+        
+        # perform defect analysis
+        if calc_tde == pseudo_tde_value:
+            defect_configs_dict[calc_pseudo] = defect_analysis(defect_files[i], vasp_ref_file)
+            defect_configs_dict[calc_pseudo]['E_d'] = pseudo_tde_value
+        elif calc_tde != pseudo_tde_value:
+            # potentially need to add cutoff handling here
+            if pseudo_tde_value >= 45:
+                print('cutoff needed')
+            continue
+        else:
+            continue
 
     print('############################ OVITO WS ANALYSIS SUMMARY ############################')
     # pprint.pprint(defect_configs_dict)
-
-    gan_pseudo_keys = pseudo_keys_from_file(pseudo_keyfile=os.path.join(FILES_LOC, 'gan_lmp_pseudo_keys.csv'))
-    pprint.pprint(average_tde_vals(defect_configs_dict, gan_pseudo_keys, dir_range=((90, 150), (0, 180))))
+    if run_type == 'vasp':
+        vasp_pseudo_keys = pseudo_keys_from_file(pseudo_keyfile=os.path.join(FILES_LOC, 'gan_vasp_pseudo_keys.csv'))
+    elif run_type == 'lammps':
+        lmp_pseudo_keys = pseudo_keys_from_file(pseudo_keyfile=os.path.join(FILES_LOC, 'gan_lmp_pseudo_keys.csv'))
+    pprint.pprint(average_tde_vals(defect_configs_dict, vasp_pseudo_keys, vasp_lattice_vecs, dir_range=((30, 150), (0, 180))))
 
     # defect_configs_df = parse_defect_properties(defect_configs_dict, atom_types=['Ga', 'N']).T
     # pprint.pprint(defect_configs_df)
