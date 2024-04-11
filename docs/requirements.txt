@@ -5,3 +5,4 @@ numpy
 pymatgen
 pandas
 fortranformat
+sphinx_book_theme
