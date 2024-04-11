@@ -22,7 +22,6 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.autosectionlabel',
-    'sphinx_design',
     'myst_nb',
 ]
 
