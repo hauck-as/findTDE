@@ -22,7 +22,6 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.autosectionlabel',
-    'myst_nb',
 ]
 
 intersphinx_mapping = {
