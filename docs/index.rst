@@ -1,10 +1,11 @@
-# findTDE
+findTDE
+===================================
 `findTDE` comprises a set of scripts to facilitate easy, high-throughput calculations of threshold displacement energies (TDEs) for materials using ab initio/classical molecular dynamics in `VASP`/`LAMMPS`. The threshold displacement energy is the minimum kinetic energy transfer from incident radiation to a lattice atom that produces a permanent defect. This property is useful for understanding the radiation hardness of a material, and it is a required parameter for binary collision approximation calculations (e.g., SRIM/TRIM).
 
-## Installation
+**Installation**
 Currently, there is no automatic installation method available. The files may be either downloaded manually or using `git clone`.
 
-## Usage
+**Usage**
 The find_tde script may be called directly from the command line with several options. The usage may be displayed using the help (-h) option. The convergence mode (-c) determines how subsequent kinetic energy values are chosen for the displacement event, either "standard" (adjust by 5 eV until opposite defect generation is found, then adjust by 1 eV until the TDE is found) or "midpoint" (adjust by 8 eV until opposite defect generation is found, then adjust by half the distance from the current energy to the nearest energy of opposite defect generation). The program selection (-p) chooses whether `VASP` or `LAMMPS` is used for the calculations. If `LAMMPS` is used, the force field file may be chosen (-f).
 
 ```bash
@@ -61,5 +62,5 @@ The input file "latt_dirs_to_calc.csv" is required to specify the displacement e
 ########################################
 ```
 
-## Acknowledgements
+**Acknowledgements**
 The findTDE code was developed by Alexander Hauck, Dr. Mia Jin, and Dr. Blair Tuttle at The Pennsylvania State University.
