@@ -1,0 +1,7 @@
+# required dependencies:
+matplotlib
+plotly
+numpy
+pymatgen
+pandas
+fortranformat
