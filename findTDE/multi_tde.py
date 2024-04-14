@@ -289,16 +289,20 @@ n_s_aln_dirs = np.array([
 
 # write_sph_dirs(scale_C3z_symmetry(lat2sph(all_tde_data[1], gan_lattice_vecs)), filepath=os.path.relpath('sph_directions.csv', base_path))
 # sph_directions = np.genfromtxt(os.path.relpath('sph_directions.csv', base_path), delimiter=',', comments='#', skip_header=4)
-# sph_directions_ext_s1 = np.genfromtxt(os.path.relpath('sph_directions_ext_set1.csv', base_path), delimiter=',', comments='#', skip_header=4)
+sph_directions_ext_s1 = np.genfromtxt(os.path.relpath('sph_directions_ext_set1.csv', base_path), delimiter=',', comments='#', skip_header=4)
 # sph_directions_ext_s2 = np.genfromtxt(os.path.relpath('sph_directions_ext_set2.csv', base_path), delimiter=',', comments='#', skip_header=4)
 # sph_directions_ext_s3 = np.genfromtxt(os.path.relpath('sph_directions_ext_set3.csv', base_path), delimiter=',', comments='#', skip_header=4)
-aln_redo_info = read_pseudo_atom_info(os.path.join(base_path, 'aln_lmp_errs_run_info.txt'))
-for i in range(aln_redo_info.shape[0]):
-    find_multiple_tde(np.array([aln_redo_info[i]['direction']]), aln_redo_info[i]['atom_type'], aln_redo_info[i]['atom_num'], ke_i=10, ke_cut=100, mode=aln_redo_info[i]['dir_mode'], conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=30)
+## aln_redo_info = read_pseudo_atom_info(os.path.join(base_path, 'aln_lmp_errs_run_info.txt'))
+## for i in range(aln_redo_info.shape[0]):
+##     find_multiple_tde(np.array([aln_redo_info[i]['direction']]), aln_redo_info[i]['atom_type'], aln_redo_info[i]['atom_num'], ke_i=10, ke_cut=100, mode=aln_redo_info[i]['dir_mode'], conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=30)
 
 # write directions and run find_tde
 # ga 34, n 35
 # find_multiple_tde(s_directions, 'ga', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp')
+
+## find_multiple_tde(sph_directions, 'zn', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=100)
+## find_multiple_tde(sph_directions, 'o', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=500)
+find_multiple_tde(sph_directions_ext_s1, 'zn', 34, ke_i=10, ke_cut=200, mode='S', conv='midpoint', prog='lammps', lmp_ff='ZnO.tersoff', screen_num=1010)
 
 # calculate lowest energy directions from GaN/AlN calcs, both Ga/Al & N knockouts, in VASP
 # find_multiple_tde(ga_s_gan_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4410)
