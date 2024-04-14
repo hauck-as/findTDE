@@ -1,0 +1,39 @@
+[project]
+name = "findTDE"
+version = "1.0.3"
+authors = [
+  { name="Alexander Hauck", email="ash5615@psu.edu" },
+]
+description = "Set of scripts to facilitate easy calculations of threshold displacement energies for materials in VASP/LAMMPS using ab initio/classical molecular dynamics."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests",
+    'importlib-metadata; python_version<"3.12"',
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "plotly",
+    "pymatgen",
+    "fortranformat"
+]
+
+[project.urls]
+Homepage = "https://findTDE.readthedocs.io/en/latest/"
+Repository = "https://github.com/hauck-as/findTDE"
+
+[project.scripts]
+cli-name = "findTDE.cli.main:main"
+
+[tool.setuptools.packages]
+find = {}  # Scan the project directory with the default parameters
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
