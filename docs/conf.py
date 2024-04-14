@@ -55,7 +55,7 @@ html_use_smartypants = True
 
 html_theme_options = {
     "repository_url": "https://github.com/hauck-as/findTDE",
-    "github_repo": "https://github.com/hauck-as/findTDE",  # renku
+    "github_repo": "https://github.com/hauck-as/findTDE",
     "github_button": True,
     "github_user": "hauck-as", # Username
     "description": "Set of scripts to facilitate easy calculations of threshold displacement energies for materials in VASP/LAMMPS using ab initio/classical molecular dynamics.",
