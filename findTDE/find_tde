@@ -66,7 +66,7 @@ perfect_path="${base_path}/perfect/"
 # set loop criterion
 ########################################
 if [ "${sim_prog}" = "vasp" ]; then
-  Eperf=$(grep "TOTEN" "${perfect_path}/OUTCAR" | tail -n 1 | grep -Eo '[+-]?[0-9]+([.][0-9]+)?')
+  Eperf=$(grep "TOTEN" "${perfect_path}OUTCAR" | tail -n 1 | grep -Eo '[+-]?[0-9]+([.][0-9]+)?')
 fi
 # flag for continuation of TDE search
 criterion=1
@@ -204,7 +204,8 @@ while true; do
 # sbatch run_args.slurm
 ########################################
     if [ ! -f "OUTCAR" ]; then
-      sbatch --nodes=6  --time=48:00:00 --account=mjj5508_b --partition=sla-prio --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_AIMD run_args.slurm
+      # sbatch --nodes=6  --time=48:00:00 --account=mjj5508_b --partition=sla-prio --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_AIMD run_args.slurm
+      vasp_std
       echo "AIMD run submitted" >> "${out_file}"
     else
       echo "AIMD run already completed" >> "${out_file}"
