@@ -10,7 +10,7 @@ import re
 import fortranformat as ff
 import pprint
 
-import math as m
+import math
 from fractions import Fraction
 import random as rand
 
@@ -26,163 +26,10 @@ from plotly.subplots import make_subplots
 import plotly.io as pio
 # import seaborn as sns
 
+from utils import *
+
 base_path = os.getcwd()
 bin_path, inp_path, perfect_path = os.path.relpath('bin', base_path), os.path.relpath('inp', base_path), os.path.relpath('perfect', base_path)
-
-
-# math functions
-def unit_vector(vector):
-    """ Returns the unit vector of the vector.  """
-    return vector / np.linalg.norm(vector)
-
-
-def angle_between(v1, v2):
-    """ Returns the angle in radians between vectors 'v1' and 'v2'::
-
-            >>> angle_between((1, 0, 0), (0, 1, 0))
-            1.5707963267948966
-            >>> angle_between((1, 0, 0), (1, 0, 0))
-            0.0
-            >>> angle_between((1, 0, 0), (-1, 0, 0))
-            3.141592653589793
-    """
-    v1_u = unit_vector(v1)
-    v2_u = unit_vector(v2)
-    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))*(180/np.pi)
-
-
-def cart2sph(x, y, z):
-    dxy = np.sqrt(x**2 + y**2)
-    r = np.sqrt(dxy**2 + z**2)
-    theta = np.arctan2(y, x)
-    phi = np.arctan2(dxy, z)
-    theta, phi = np.rad2deg([theta, phi])
-    return r, theta % 360, phi
-
-
-def sph2cart(theta, phi, r=0.5):
-    theta, phi = np.deg2rad([theta, phi])
-    z = r * np.cos(phi)
-    rsinphi = r * np.sin(phi)
-    x = rsinphi * np.cos(theta)
-    y = rsinphi * np.sin(theta)
-    return x, y, z
-
-
-# crystallography functions
-# https://ssd.phys.strath.ac.uk/resources/crystallography/crystallographic-direction-calculator/
-def lattice_iconv(indices, ind_type='UVTW'):
-    """
-    Function converting between rectangular and hexagonal lattice indices. Given a
-    tuple of indices and the initial index type as a keyword argument. Index type
-    is either [uvw] for rectangular or [UVTW] for hexagonal. Returns a tuple of
-    the opposite type.
-    """
-    print(indices)
-    
-    if ind_type == 'UVTW':
-        U, V, T, W = indices
-        u = 2*U + V
-        v = 2*V + U
-        w = W
-        n = m.gcd(u, m.gcd(v, w))
-        
-        u /= n
-        v /= n
-        w /= n
-        
-        new_indices = (int(u), int(v), int(w))
-    
-    elif ind_type == 'uvw':
-        u, v, w = indices
-        U = Fraction(((2*u) - v), 3)
-        V = Fraction(((2*v) - u), 3)
-        T = -1*(U + V)
-        W = w
-        
-        denom_gcd = m.gcd(U.denominator, m.gcd(V.denominator, T.denominator))
-        U *= denom_gcd
-        V *= denom_gcd
-        T *= denom_gcd
-        W *= denom_gcd
-        
-        new_indices = (int(U), int(V), int(T), int(W))
-    
-    return new_indices
-
-
-def lat2sph(uvw, ai):
-    """
-    Function converting from lattice directions to spherical coordinates. Given two 2D
-    arrays, one for lattice directions and one for lattice vectors, returns a 2D array
-    of the spherical coordinates corresponding to the lattice directions.
-    """
-    xyz, rpt = np.zeros(uvw.shape), np.zeros(uvw.shape)
-    
-    for i in range(uvw.shape[0]):
-        xyz[i, :] = uvw[i, :]@ai
-        rpt[i, :] = np.around(cart2sph(xyz[i, 0], xyz[i, 1], xyz[i, 2]), decimals=2)
-        rpt[i, 0] = 1.00
-    
-    return rpt
-
-
-def sph2lat(rpt, ai):
-    """
-    Function converting from lattice directions to spherical coordinates. Given two 2D
-    arrays, one for lattice directions and one for lattice vectors, returns a 2D array
-    of the spherical coordinates corresponding to the lattice directions.
-    """
-    xyz, uvw = np.zeros(rpt.shape), np.zeros(rpt.shape)
-    
-    for i in range(rpt.shape[0]):
-        xyz[i, :] = sph2cart(rpt[i, 1], rpt[i, 2], r=rpt[i, 0])
-        uvw[i, :] = xyz[i, :]@np.linalg.inv(ai)
-        n = m.gcd(round(uvw[i, 0]), m.gcd(round(uvw[i, 1]), round(uvw[i, 2])))
-        uvw[i, :] /= n
-    
-    return uvw
-
-
-def scale_C3z_symmetry(rpt):
-    """
-    Function to scale all given spherical coordinates to a single zone based on threefold
-    rotation symmetry about the c-axis. Given a 2D array of spherical coordinates, returns
-    another 2D array of spherical coordinates with polar angle scaled by 120 deg increments
-    to the desired range.
-    """
-    for i in range(rpt.shape[0]):
-        if rpt[i, 1] >= 30. and rpt[i, 1] <= 150.:
-            pass
-        elif rpt[i, 1] >= 0. and rpt[i, 1] < 30.:
-            rpt[i, 1] += 120.
-        elif rpt[i, 1] > 150. and rpt[i, 1] <= 270.:
-            rpt[i, 1] -= 120.
-        elif rpt[i, 1] > 270. and rpt[i, 1] <= 360.:
-            rpt[i, 1] -= 240.
-        else:
-            raise Exception('Angle outside of 0-360 deg')
-    return rpt
-
-
-def scale_C6z_symmetry(rpt):
-    """
-    Function to scale all given spherical coordinates to a single zone based on sixfold
-    rotation symmetry about the c-axis. Given a 2D array of spherical coordinates, returns
-    another 2D array of spherical coordinates with polar angle scaled by 60 deg increments
-    to the desired range.
-    """
-    rpt_C3z = scale_C3z_symmetry(rpt)
-    
-    for i in range(rpt_C3z.shape[0]):
-        if rpt_C3z[i, 1] >= 30. and rpt_C3z[i, 1] <= 90.:
-            pass
-        elif rpt_C3z[i, 1] > 90. and rpt_C3z[i, 1] <= 150.:
-            rpt[i, 1] = 180. - rpt[i, 1]
-        else:
-            raise Exception('Angle outside of 30-150 deg')
-    return rpt
-
 
 # interpolation and plotting functions
 txt_positions_reg = ['top center', 'bottom center']
@@ -396,7 +243,7 @@ def check_find_tde_runs(tde_calc_dir=base_path, program='vasp', ke_tol=1, temp_t
             pseudo_atom = pseudo_path.rsplit('/', 1)[-1]    # string for pseudo and atom type/number
         elif program == 'lammps':
             pseudo_atom = pseudo_path.rsplit('/', 1)[-1].rsplit('_', 1)[0]    # string for pseudo and atom type/number
-        pseudo, atom_info = pseudo_atom.rsplit('_', 1)    # separate pseudo/atom info
+        pseudo, atom_info = pseudo_atomath.rsplit('_', 1)    # separate pseudo/atom info
         atom_type_ideal, atom_num_ideal = re.search(r'\D+', atom_info).group(), int(re.search(r'\d+', atom_info).group())    # specified atom type and number for findTDE run
         find_tde_checks_dict = {
             'tde': [],
@@ -775,7 +622,7 @@ def pseudo_keys_from_file(pseudo_keyfile=os.path.join(base_path, 'pseudo_keys.cs
 
 
 # function to gather data from find_tde lammps runs, recalculated after thermalizing
-def tde_thrm_data_gather(ofile='all_tde_data_lmp_thrm.csv', tde_calc_dir=base_path, e_tol=1.0):
+def tde_thrm_data_gather(ofile='all_tde_data_lmp_thrmath.csv', tde_calc_dir=base_path, e_tol=1.0):
     """
     Gathers all TDE data formatted as find_tde data.
     """
@@ -802,7 +649,7 @@ def tde_thrm_data_gather(ofile='all_tde_data_lmp_thrm.csv', tde_calc_dir=base_pa
                     if log_filepaths[j].rsplit('/', 1)[-1] == 'log_thermal.lammps':
                         pass
                     else:
-                        pseudo, atom_info = pseudo_atom.rsplit('_', 1)
+                        pseudo, atom_info = pseudo_atomath.rsplit('_', 1)
                         atom_type, atom_num = re.search(r'\D+', atom_info).group(), re.search(r'\d+', atom_info).group()
                         Ei = re.search(r'-?\d*\.{0,1}\d+', subprocess.run(['grep', 'Initial energy of atoms', log_filepaths[j]], capture_output = True, text = True).stdout.strip('\n').split('\n')[-1]).group()
                         Ef = re.search(r'-?\d*\.{0,1}\d+', subprocess.run(['grep', 'Final energy of atoms', log_filepaths[j]], capture_output = True, text = True).stdout.strip('\n').split('\n')[-1]).group()
