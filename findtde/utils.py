@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """Python module of utility functions for findTDE calculations."""
-import math
+from math import gcd
 from fractions import Fraction
-import random as rand
-
 import numpy as np
 
 
@@ -64,7 +62,7 @@ def lattice_iconv(indices, ind_type='UVTW'):
         u = 2*U + V
         v = 2*V + U
         w = W
-        n = math.gcd(u, math.gcd(v, w))
+        n = gcd(u, gcd(v, w))
         
         u /= n
         v /= n
@@ -79,7 +77,7 @@ def lattice_iconv(indices, ind_type='UVTW'):
         T = -1*(U + V)
         W = w
         
-        denom_gcd = math.gcd(U.denominator, math.gcd(V.denominator, T.denominator))
+        denom_gcd = gcd(U.denominator, gcd(V.denominator, T.denominator))
         U *= denom_gcd
         V *= denom_gcd
         T *= denom_gcd
@@ -117,7 +115,7 @@ def sph2lat(rpt, ai):
     for i in range(rpt.shape[0]):
         xyz[i, :] = sph2cart(rpt[i, 1], rpt[i, 2], r=rpt[i, 0])
         uvw[i, :] = xyz[i, :]@np.linalg.inv(ai)
-        n = math.gcd(round(uvw[i, 0]), math.gcd(round(uvw[i, 1]), round(uvw[i, 2])))
+        n = gcd(round(uvw[i, 0]), gcd(round(uvw[i, 1]), round(uvw[i, 2])))
         uvw[i, :] /= n
     
     return uvw
@@ -162,3 +160,48 @@ def scale_C6z_symmetry(rpt):
             raise Exception('Angle outside of 30-150 deg')
     return rpt
 
+
+# interpolation functions
+def idw(samples, tx, ty, P=5):
+    """
+    Function to compute a single IDW interpolation of sample data.
+    Change P value for different interpolation (P>2 is recommended).
+    """
+    def dist(a, b):
+        return ((a[0]-b[0])**2 + (a[1]-b[1])**2)**(1./2.)
+
+    num = 0.
+    den = 0.
+    for i in range(0, len(samples)):
+        d = (dist(samples[i], [tx, ty]))**P
+        if(d < 1.e-5):
+            return samples[i][2]
+
+        w = 1/d
+        num += w*samples[i][2]
+        den += w
+
+    return num/den
+
+
+def idw_heatmap(inputdata, RES=360, P=5):
+    """
+    Perform full IDW interpolation on a (nsamples x 3) array (x, y, f(x, y))
+    and produce data able to be used in a heatmap. From Victor.
+    Change P value for different interpolation (P>2 is recommended).
+    RES is the resolution of the final image.
+    """
+    # from Victor, plot heatmap
+    # Setup z as a function of interpolated x, y
+    minx, maxx = min([d[0] for d in inputdata]), max([d[0] for d in inputdata])
+    miny, maxy = min([d[1] for d in inputdata]), max([d[1] for d in inputdata])
+    minz, maxz = min([d[2] for d in inputdata]), max([d[2] for d in inputdata])    # useful to scale 0 < z < 1
+    dx, dy = (maxx - minx)/(RES-1), (maxy - miny)/(RES-1)
+    xs = [minx + i*dx for i in range(0, RES)]
+    ys = [miny + i*dy for i in range(0, RES)]
+    zs = [[None for i in range(0, RES)] for j in range(0, RES)]
+    for i in range(0, RES):
+        for j in range(0, RES):
+            zs[i][j] = idw(samples=inputdata, tx=xs[i], ty=ys[j], P=P)
+    # print(xs, ys, zs)
+    return (xs, ys, np.transpose(zs))

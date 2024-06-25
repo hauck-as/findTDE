@@ -3,16 +3,11 @@
 import os
 import glob
 from pathlib import Path
-import json
 
 import subprocess
 import re
 import fortranformat as ff
 import pprint
-
-import math
-from fractions import Fraction
-import random as rand
 
 import numpy as np
 import pandas as pd
@@ -27,116 +22,11 @@ import plotly.io as pio
 # import seaborn as sns
 
 from findtde.utils import *
+from findtde.plotting import *
+from findtde.io import *
 
-base_path = os.getcwd()
-bin_path, inp_path, perfect_path = os.path.relpath('bin', base_path), os.path.relpath('inp', base_path), os.path.relpath('perfect', base_path)
-
-# interpolation and plotting functions
-txt_positions_reg = ['top center', 'bottom center']
-txt_positions_extra = ['top center', 'bottom center', 'top right', 'top left', 'bottom right', 'bottom left']
-
-
-def improve_text_position(x, txt_positions=txt_positions_reg):
-    """
-    Function to improve the text position for Plotly scatter plots.
-    More efficient if the x values are sorted.
-    """
-    return [txt_positions[(i % len(txt_positions)-(rand.randint(1,2)))] for i in range(len(x))]
-
-
-# Plotly hover text formatting for heatmaps
-hover_se = '<br><b>Polar</b>: %{x:.2f}'+\
-            '<br><b>Azimuthal</b>: %{y:.2f}'+\
-            '<br><b>Ef</b>: %{z:.2f} eV'
-
-hover_tde = '<br><b>Polar</b>: %{x:.2f}'+\
-            '<br><b>Azimuthal</b>: %{y:.2f}'+\
-            '<br><b>TDE</b>: %{color:.2f} eV'
-
-
-# Change Plotly default template to simple white and modify for 
-pl_paper_theme = pio.templates['simple_white']
-pl_paper_theme.layout.xaxis.ticks = 'inside'
-pl_paper_theme.layout.yaxis.ticks = 'inside'
-pl_paper_theme.layout.xaxis.mirror = 'ticks'  # True | "ticks" | False | "all" | "allticks"
-pl_paper_theme.layout.yaxis.mirror = 'ticks'  # True | "ticks" | False | "all" | "allticks"
-pl_paper_theme.layout.font.size = 32
-# pl_paper_theme.layout.xaxis.title.standoff = 20
-pl_paper_theme.layout.xaxis.title.font.size = 40
-# pl_paper_theme.layout.yaxis.title.standoff = 20
-pl_paper_theme.layout.yaxis.title.font.size = 40
-#pl_paper_theme.layout.coloraxis.colorbar.title.standoff = 20
-pio.templates.default = pl_paper_theme
-
-
-def generate_tde_line_plot(tde_data_df, im_write=False, im_name='tde_lineplot.png'):
-    """
-    Given a DataFrame of TDE data, produces line plot for each calculated direction with KE on x-axis
-    and difference in final energy on y-axis.
-    """
-    fig = px.line(tde_data_df, #log_y=True,
-                  markers=True, color_discrete_sequence=px.colors.qualitative.Dark24) # Alphabet, Light24, & Dark24 have most
-
-    fig.update_traces(connectgaps=True, marker_size=9, line = dict(width=4, dash='dash'))
-    fig.update_layout(autosize=False, width=1300, height=600,
-                      xaxis_title=r'$KE_{i} \text{ [eV]}$',
-                      yaxis_title=r'$\Delta E \text{ [eV]}$',
-                      legend_title='Pseudo',
-                      font_size=20
-                     )
-    fig.show()
-    
-    if im_write == True:
-        fig.write_image(os.path.join(base_path, im_name))
-    elif im_write == False:
-        pass
-    
-    return
-
-
-def idw(samples, tx, ty, P=5):
-    """
-    Function to compute a single IDW interpolation of sample data.
-    Change P value for different interpolation (P>2 is recommended).
-    """
-    def dist(a, b):
-        return ((a[0]-b[0])**2 + (a[1]-b[1])**2)**(1./2.)
-
-    num = 0.
-    den = 0.
-    for i in range(0, len(samples)):
-        d = (dist(samples[i], [tx, ty]))**P
-        if(d < 1.e-5):
-            return samples[i][2]
-
-        w = 1/d
-        num += w*samples[i][2]
-        den += w
-
-    return num/den
-
-
-def idw_heatmap(inputdata, RES=360, P=5):
-    """
-    Perform full IDW interpolation on a (nsamples x 3) array (x, y, f(x, y))
-    and produce data able to be used in a heatmap. From Victor.
-    Change P value for different interpolation (P>2 is recommended).
-    RES is the resolution of the final image.
-    """
-    # from Victor, plot heatmap
-    # Setup z as a function of interpolated x, y
-    minx, maxx = min([d[0] for d in inputdata]), max([d[0] for d in inputdata])
-    miny, maxy = min([d[1] for d in inputdata]), max([d[1] for d in inputdata])
-    minz, maxz = min([d[2] for d in inputdata]), max([d[2] for d in inputdata])    # useful to scale 0 < z < 1
-    dx, dy = (maxx - minx)/(RES-1), (maxy - miny)/(RES-1)
-    xs = [minx + i*dx for i in range(0, RES)]
-    ys = [miny + i*dy for i in range(0, RES)]
-    zs = [[None for i in range(0, RES)] for j in range(0, RES)]
-    for i in range(0, RES):
-        for j in range(0, RES):
-            zs[i][j] = idw(samples=inputdata, tx=xs[i], ty=ys[j], P=P)
-    # print(xs, ys, zs)
-    return (xs, ys, np.transpose(zs))
+base_path = Path.cwd()
+bin_path, inp_path, perfect_path = base_path / 'bin', base_path / 'inp', base_path / 'perfect'
 
 
 def vasp_inp_match_check(poscar_filepath, potcar_filepath):
@@ -174,55 +64,6 @@ def vasp_inp_match_check(poscar_filepath, potcar_filepath):
         return False
 
 
-# automated TDE analysis
-def write_sph_dirs(rpt, filepath=os.path.join(base_path, 'sph_directions.csv')):
-    """
-    Function to write spherical directions to a text/csv file for multi_tde.py use.
-    Given a 2D array of spherical coordinates, writes array values to the file
-    represented by the filepath string.
-    """
-    sph_f_header = '########################################\n' + \
-    'Spherical directions for multi_tde.py calculations\n' + \
-    'r, p, t\n' + \
-    '########################################\n'
-    
-    sph_f = open(filepath, 'a+')
-    if os.stat(filepath).st_size == 0:
-        sph_f.write(sph_f_header)
-    sph_f.write('########################################\n')
-    for i in range(rpt.shape[0]):
-        sph_line = ', '.join([str(round(j, 2)) for j in rpt[i, :]])
-        sph_f.write(sph_line+'\n')
-    sph_f.close()
-    return
-
-
-def find_contcars(tde_calc_dir=base_path, pseudo='*'):
-    """
-    Function to create an array of post-CGM CONTCAR files for defect analysis.
-    """
-    contcar_files = np.array(glob.glob(os.path.join(tde_calc_dir, pseudo, '*', 'cgm', 'CONTCAR'), recursive=True))
-    return contcar_files
-
-
-def find_dumpfiles(tde_calc_dir=base_path, pseudo='*'):
-    """
-    Function to create an array of post-MD dump files for defect analysis.
-    """
-    dump_files = np.array(glob.glob(os.path.join(tde_calc_dir, pseudo, '*', 'dump.final'), recursive=True))
-    return dump_files
-
-
-def pseudo_keys_from_file(pseudo_keyfile='pseudo_keys.csv'):
-    """
-    Function to convert a CSV file of pseudo keys to a dictionary.
-    """
-    pk_df = pd.read_csv(pseudo_keyfile, index_col=0)
-    pks_dict = pk_df.to_dict('split')
-    pks_dict = dict(zip(pks_dict['index'], pks_dict['data']))
-    return pks_dict
-
-
 # function to analyze find_tde runs and determine if there are any issues
 def check_find_tde_runs(tde_calc_dir=base_path, program='vasp', ke_tol=1, temp_tol=0.6):
     """
@@ -243,7 +84,7 @@ def check_find_tde_runs(tde_calc_dir=base_path, program='vasp', ke_tol=1, temp_t
             pseudo_atom = pseudo_path.rsplit('/', 1)[-1]    # string for pseudo and atom type/number
         elif program == 'lammps':
             pseudo_atom = pseudo_path.rsplit('/', 1)[-1].rsplit('_', 1)[0]    # string for pseudo and atom type/number
-        pseudo, atom_info = pseudo_atomath.rsplit('_', 1)    # separate pseudo/atom info
+        pseudo, atom_info = pseudo_atom.rsplit('_', 1)    # separate pseudo/atom info
         atom_type_ideal, atom_num_ideal = re.search(r'\D+', atom_info).group(), int(re.search(r'\d+', atom_info).group())    # specified atom type and number for findTDE run
         find_tde_checks_dict = {
             'tde': [],
@@ -344,61 +185,6 @@ def check_find_tde_runs(tde_calc_dir=base_path, program='vasp', ke_tol=1, temp_t
         all_find_tde_checks_dict[pseudo_atom] = find_tde_checks_dict
     
     return (all_find_tde_errs_dict, all_find_tde_checks_dict)
-
-
-# function to gather data from find_tde runs
-def tde_data_gather(ofile='all_tde_data.csv', tde_calc_dir=base_path):
-    """
-    Gathers all TDE data formatted as find_tde data.
-    """
-    tde_data_header = 'Lattice Direction Pseudo, Atom Type, Atom Number, KE, Final Energy, Delta Energy\n'
-    
-    data_filepaths = glob.glob(os.path.join(tde_calc_dir, '*', '*_data.csv'), recursive=True)
-    of = open(ofile, 'a+')
-    of.write(tde_data_header)
-    
-    for file in data_filepaths:
-        data = np.genfromtxt(file, delimiter=', ', skip_header=1,
-                             dtype=[('f0', '<U4'), ('f1', '<U4'), ('f2', '<i4'),
-                                    ('f3', '<i4'), ('f4', '<f8'), ('f5', '<f8')]
-                            )
-        np.savetxt(of, data, delimiter=', ', newline='\n',
-                   fmt=['%s', '%s', '%d', '%d', '%f', '%f']
-                  )
-    
-    of.close()
-
-
-# function to determine TDE from a single datafile
-def get_tde_from_datafile(data_filepath='*_data.csv', e_tol=1.0, ke_cut=45):
-    """
-    Scans a findTDE *_data.csv file and returns the TDE value for the specified knockout type.
-    """
-    # read in tde data into structured array
-    tde_data = np.genfromtxt(data_filepath, delimiter=', ', skip_header=1,
-                             dtype=[('pseudo', '<U4'), ('atom_type', '<U4'), ('atom_num', '<i4'),
-                                ('ke', '<i4'), ('e_fin', '<f8'), ('dE', '<f8')]
-                            )
-    
-    # sort array from lowest KE to highest KE
-    tde_data = np.sort(tde_data, order='ke')
-    
-    # find TDE value from energy difference
-    # first KE corresponding to a dE > e_tol is the TDE in the sorted array
-    tde_value = 0
-    for i in range(tde_data.shape[0]):
-        if np.isnan(tde_data[i]['dE']) == True:
-            continue
-        elif tde_data[i]['dE'] > e_tol:
-            if tde_data[i]['ke'] <= ke_cut:
-                tde_value = tde_data[i]['ke']
-            elif tde_data[i]['ke'] > ke_cut:
-                tde_value = ke_cut
-            break
-        else:
-            tde_value = ke_cut
-    
-    return tde_value
 
 
 # create dataframes for final energies and energy differences
@@ -516,113 +302,8 @@ def generate_tde_sph_arr(tde_data_df, pseudo_keys, lattice_vecs, e_tol=1.0, ke_c
     return (find_tde_sph_arr, find_tde_pseudos)
 
 
-def generate_tde_scatter_plot(tde_sph_arr, tde_directions, txt_show=False, im_write=False, im_name='tde_scatter_plot.png'):
-    """
-    Given an Nx3 array of TDE data, produces line plot for each calculated direction with polar angle on x-axis,
-    azimuthal angle on y-axis, TDE value as color, and direction pseudos as text.
-    """
-    fig = go.Figure(data=go.Scatter(x=tde_sph_arr[:, 0],
-                                    y=tde_sph_arr[:, 1],
-                                    text=list(tde_directions) if txt_show == True else None,
-                                    mode='markers+text',
-                                    marker=dict(color=tde_sph_arr[:, 2],
-                                                colorscale='thermal_r',
-                                                size=40, colorbar=dict(thickness=20) #, title=r'$E_{d} \; [eV]$', title_side='right')
-                                               )
-                                   ))
-    
-    if txt_show == True:
-        fig.update_traces(textposition=improve_text_position(list(tde_directions), txt_positions=txt_positions_reg))
-    elif txt_show == False:
-        pass
-
-    fig.add_vline(x=90, line=dict(color='black', width=3, dash='dash'))
-    fig.add_vline(x=210, line=dict(color='black', width=3, dash='dash'))
-
-    fig.update_layout(# title=('Interpolated SEs from Sph. Pert. of Ga #34 with Latt. Dir. TDEs'),
-                      # xaxis_title=r'$\phi \; [^{\circ}]$',
-                      # yaxis_title=r'$\theta \; [^{\circ}]$',
-                      xaxis=dict(tickmode='linear', dtick=30),
-                      yaxis=dict(tickmode='linear', dtick=30),
-                      xaxis_range=[80, 160],
-                      # xaxis_range=[80, 220],
-                      yaxis_range=[0, 180],
-                      yaxis_autorange='reversed',
-                      # font_size=32,  # 16
-                      autosize=False, width = 1200, height = 900  # width = 1600, height = 900
-                     )
-
-    fig.show()
-    
-    if im_write == True:
-        fig.write_image(os.path.join(base_path, im_name), scale=2)
-    elif im_write == False:
-        pass
-    
-    return
-
-
-def generate_tde_heatmap_plot(polars, azimuthals, energies, im_write=False, im_name='tde_heatmap.png'):
-    """
-    Given an Nx3 array of TDE data, produces line plot for each calculated direction with polar angle on x-axis,
-    azimuthal angle on y-axis, TDE value as color, and direction pseudos as text.
-    """
-    fig = go.Figure(data=go.Heatmap(x=polars,
-                                    y=azimuthals,
-                                    z=energies,
-                                    hovertemplate=hover_tde,
-                                    colorbar_title=r'$E_{d} \; [eV]$',
-                                    colorbar_title_side='right',
-                                    colorscale='electric_r'
-                                   ))
-
-    fig.add_vline(x=90, line=dict(color='black', width=3, dash='dash'))
-    fig.add_vline(x=210, line=dict(color='black', width=3, dash='dash'))
-
-    fig.update_layout(# title=('Interpolated Ga #34 with Latt. Dir. TDEs'),
-                      # xaxis_title=r'$\phi \; [^{\circ}]$',
-                      # yaxis_title=r'$\theta \; [^{\circ}]$',
-                      xaxis=dict(tickmode='linear', dtick=30),
-                      yaxis=dict(tickmode='linear', dtick=30),
-                      xaxis_range=[90, 210],
-                      # xaxis_range=[90, 150],
-                      yaxis_range=[0, 180],
-                      yaxis_autorange='reversed',
-                      font_size=16,  # 24
-                      autosize=False, width = 1400, height = 900  # width = 1600, height = 900
-                     )
-    
-    fig.show()
-    
-    if im_write == True:
-        fig.write_image(os.path.join(base_path, im_name))
-    elif im_write == False:
-        pass
-    
-    return
-
-
-def pseudo_keys_to_file(pseudo_keys, pseudo_keyfile=os.path.join(base_path, 'pseudo_keys.csv')):
-    """
-    Function to convert a pseudo keys dictionary to a CSV.
-    """
-    pk_df = pd.DataFrame.from_dict(pseudo_keys, orient='index')
-    pk_df.to_csv(pseudo_keyfile)
-    return
-
-
-def pseudo_keys_from_file(pseudo_keyfile=os.path.join(base_path, 'pseudo_keys.csv')):
-    """
-    Function to convert a CSV file of pseudo keys to a dictionary.
-    """
-    pk_df = pd.read_csv(pseudo_keyfile, index_col=0)
-    pks_dict = pk_df.to_dict('split')
-    pks_dict = dict(zip(pks_dict['index'], pks_dict['data']))
-    return pks_dict
-
-
 # function to gather data from find_tde lammps runs, recalculated after thermalizing
-def tde_thrm_data_gather(ofile='all_tde_data_lmp_thrmath.csv', tde_calc_dir=base_path, e_tol=1.0):
+def tde_thrm_data_gather(ofile='all_tde_data_lmp_thrm.csv', tde_calc_dir=base_path, e_tol=1.0):
     """
     Gathers all TDE data formatted as find_tde data.
     """
@@ -649,7 +330,7 @@ def tde_thrm_data_gather(ofile='all_tde_data_lmp_thrmath.csv', tde_calc_dir=base
                     if log_filepaths[j].rsplit('/', 1)[-1] == 'log_thermal.lammps':
                         pass
                     else:
-                        pseudo, atom_info = pseudo_atomath.rsplit('_', 1)
+                        pseudo, atom_info = pseudo_atom.rsplit('_', 1)
                         atom_type, atom_num = re.search(r'\D+', atom_info).group(), re.search(r'\d+', atom_info).group()
                         Ei = re.search(r'-?\d*\.{0,1}\d+', subprocess.run(['grep', 'Initial energy of atoms', log_filepaths[j]], capture_output = True, text = True).stdout.strip('\n').split('\n')[-1]).group()
                         Ef = re.search(r'-?\d*\.{0,1}\d+', subprocess.run(['grep', 'Final energy of atoms', log_filepaths[j]], capture_output = True, text = True).stdout.strip('\n').split('\n')[-1]).group()
@@ -699,7 +380,7 @@ def tde_thrm_data_gather(ofile='all_tde_data_lmp_thrmath.csv', tde_calc_dir=base
 
 
 if __name__ == "__main__":
-    FILES_LOC = os.getcwd()    # os.path.dirname(__file__)
+    FILES_LOC = base_path
     
     run_type, knockout_atom = 'vasp', 'ga34'
     
