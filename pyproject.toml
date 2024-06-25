@@ -1,6 +1,6 @@
 [project]
 name = "findtde"
-version = "1.0.3"
+version = "1.0.4"
 authors = [
   { name="Alexander Hauck", email="ash5615@psu.edu" },
 ]
