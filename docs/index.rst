@@ -6,7 +6,7 @@ findTDE
 ------------
 Installation
 ------------
-Currently, there is no automatic installation method available. The files may be either downloaded manually or using ``git clone``.
+Automatic installation is available with ``pip install findtde``. The files may also be either downloaded manually or using ``git clone``.
 
 -----
 Usage

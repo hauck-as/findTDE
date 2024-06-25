@@ -26,7 +26,7 @@ from plotly.subplots import make_subplots
 import plotly.io as pio
 # import seaborn as sns
 
-from utils import *
+from findtde.utils import *
 
 base_path = os.getcwd()
 bin_path, inp_path, perfect_path = os.path.relpath('bin', base_path), os.path.relpath('inp', base_path), os.path.relpath('perfect', base_path)
