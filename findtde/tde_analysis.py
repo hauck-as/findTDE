@@ -379,16 +379,17 @@ def tde_thrm_data_gather(ofile='all_tde_data_lmp_thrm.csv', tde_calc_dir=base_pa
     return tde_thrm_dict
 
 
-if __name__ == "__main__":
-    FILES_LOC = base_path
-    
-    run_type, knockout_atom = 'vasp', 'ga34'
-    
+def something(knockout_atom_type, knockout_atom_num, run_type='vasp', base_path=base_path):
+    """
+    Function to
+    """
+    knockout_atom = knockout_atom_type.lower() + str(knockout_atom_num)
+
     # read in VASP and LAMMPS perfect structure information
     if run_type == 'vasp':
-        vasp_ref_file = os.path.join(FILES_LOC, 'inp', 'POSCAR')
+        vasp_ref_file = base_path / 'inp' / 'POSCAR'
     elif run_type == 'lammps':
-        vasp_ref_file, lmp_ref_file = os.path.join(FILES_LOC, 'inp', 'POSCAR'), os.path.join(FILES_LOC, 'inp', 'read_data_perfect.lmp')
+        vasp_ref_file, lmp_ref_file = base_path / 'inp' / 'POSCAR', base_path / 'inp' / 'read_data_perfect.lmp'
     pos_f = open(vasp_ref_file, 'r')
     pos_lines = pos_f.readlines()
     pos_f.close()
@@ -402,41 +403,36 @@ if __name__ == "__main__":
     vasp_params = np.array([np.linalg.norm(vasp_lattice_vecs[0, :]), np.linalg.norm(vasp_lattice_vecs[1, :]), np.linalg.norm(vasp_lattice_vecs[2, :])])
 
     # check if runs have issues
-    if run_type == 'vasp':
-        print(check_find_tde_runs(tde_calc_dir=FILES_LOC, program='vasp')[0])
-    elif run_type == 'lammps':
-        print(check_find_tde_runs(tde_calc_dir=FILES_LOC, program='lammps')[0])
-    
+    # should change from print, maybe try except?
+    print(check_find_tde_runs(tde_calc_dir=base_path, program=run_type)[0])
+
     # gather TDE data from calculations 
-    tde_data_gather(ofile='all_tde_data.csv', tde_calc_dir=FILES_LOC)
-    
+    tde_data_gather(ofile='all_tde_data.csv', tde_calc_dir=base_path)
+
     ######## TDE data ########
     if run_type == 'vasp':
         # organize data from csv file into dataframes
-        all_find_tde_dfs, pseudo_keys = find_tde_analysis(['Ga', 'N'], [34, 35], datafile='all_tde_data.csv', keyfile=os.path.join(FILES_LOC, 'latt_dirs_to_calc.csv'))
-        ga_find_tde_df, n_find_tde_df = all_find_tde_dfs['ga34'][1], all_find_tde_dfs['n35'][1]
+        all_find_tde_dfs, pseudo_keys = find_tde_analysis([knockout_atom_type.capitalize()], [knockout_atom_num], datafile='all_tde_data.csv', keyfile=(base_path / 'latt_dirs_to_calc.csv'))
+        find_tde_df = all_find_tde_dfs[knockout_atom][1]
         
         # reorganize data into array
-        ga_tde_sph_arr, ga_tde_pseudos = generate_tde_sph_arr(ga_find_tde_df, pseudo_keys, lattice_vecs=vasp_lattice_vecs, e_tol=1.0, ke_cut=45, polar_offset=angle_between([1., 0., 0.], vasp_lattice_vecs[0]))
-        n_tde_sph_arr, n_tde_pseudos = generate_tde_sph_arr(n_find_tde_df, pseudo_keys, lattice_vecs=vasp_lattice_vecs, e_tol=1.0, ke_cut=45, polar_offset=angle_between([1., 0., 0.], vasp_lattice_vecs[0]))
+        tde_sph_arr, tde_pseudos = generate_tde_sph_arr(find_tde_df, pseudo_keys, lattice_vecs=vasp_lattice_vecs, e_tol=1.0, ke_cut=45, polar_offset=angle_between([1., 0., 0.], vasp_lattice_vecs[0]))
         
         # from Victor, read data into a (nsamples x 3) array (x, y, f(x, y)), interpolate and plot heatmap data
-        # ps_ga_tde, ts_ga_tde, es_ga_tde = idw_heatmap(ga_tde_sph_arr, RES=ga_tde_sph_arr.shape[0], P=5)
-        # ps_n_tde, ts_n_tde, es_n_tde = idw_heatmap(n_tde_sph_arr, RES=n_tde_sph_arr.shape[0], P=5)
+        # ps_tde, ts_tde, es_tde = idw_heatmap(tde_sph_arr, RES=tde_sph_arr.shape[0], P=5)
         
     elif run_type == 'lammps':
         # organize data from csv file into dataframes
-        all_find_tde_lmp_dfs, lmp_pseudo_keys = find_tde_analysis(['Ga', 'N'], [34, 35], datafile='all_tde_data_lmp.csv', keyfile=os.path.join(FILES_LOC, 'latt_dirs_to_calc.csv'))
-        ga_find_tde_lmp_df, n_find_tde_lmp_df = all_find_tde_lmp_dfs['ga34'][1], all_find_tde_lmp_dfs['n35'][1]
+        all_find_tde_lmp_dfs, lmp_pseudo_keys = find_tde_analysis([knockout_atom_type.capitalize()], [knockout_atom_num], datafile='all_tde_data_lmp.csv', keyfile=(base_path / 'latt_dirs_to_calc.csv'))
+        find_tde_lmp_df = all_find_tde_lmp_dfs[knockout_atom][1]
         
         # reorganize data into array
-        ga_tde_lmp_sph_arr, ga_tde_lmp_pseudos = generate_tde_sph_arr(ga_find_tde_lmp_df, lmp_pseudo_keys, lattice_vecs=vasp_lattice_vecs, e_tol=1.0, ke_cut=100, polar_offset=angle_between([1., 0., 0.], vasp_lattice_vecs[0]))
-        n_tde_lmp_sph_arr, n_tde_lmp_pseudos = generate_tde_sph_arr(n_find_tde_lmp_df, lmp_pseudo_keys, lattice_vecs=vasp_lattice_vecs, e_tol=1.0, ke_cut=100, polar_offset=angle_between([1., 0., 0.], vasp_lattice_vecs[0]))
+        tde_lmp_sph_arr, tde_lmp_pseudos = generate_tde_sph_arr(find_tde_lmp_df, lmp_pseudo_keys, lattice_vecs=vasp_lattice_vecs, e_tol=1.0, ke_cut=100, polar_offset=angle_between([1., 0., 0.], vasp_lattice_vecs[0]))
         
         # from Victor, read data into a (nsamples x 3) array (x, y, f(x, y)), interpolate and plot heatmap data
-        # ps_ga_lmp_tde, ts_ga_lmp_tde, es_ga_lmp_tde = idw_heatmap(ga_tde_lmp_sph_arr, RES=ga_tde_lmp_sph_arr.shape[0], P=5)
-        # ps_n_lmp_tde, ts_n_lmp_tde, es_n_lmp_tde = idw_heatmap(n_tde_lmp_sph_arr, RES=n_tde_lmp_sph_arr.shape[0], P=5)
+        # ps_lmp_tde, ts_lmp_tde, es_lmp_tde = idw_heatmap(tde_lmp_sph_arr, RES=tde_lmp_sph_arr.shape[0], P=5)
     
-    generate_tde_line_plot(ga_find_tde_df, im_write=True, im_name='find_tde_lineplot.png')
-    generate_tde_scatter_plot(ga_tde_sph_arr, ga_tde_pseudos, txt_show=False, im_write=True, im_name='gan_ga_tde.png')
-    # generate_tde_scatter_plot(n_tde_sph_arr, n_tde_pseudos, txt_show=False, im_write=True, im_name='gan_n_tde.png')
+    generate_tde_line_plot(find_tde_df, im_write=True, im_name='tde_lineplot.png')
+    generate_tde_scatter_plot(tde_sph_arr, tde_pseudos, txt_show=False, im_write=True, im_name='tde_scatter.png')
+    
+    return
