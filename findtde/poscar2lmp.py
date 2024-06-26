@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-### Convert POSCAR to lammps read_data file####
+"""Python module to convert VASP POSCAR to LAMMPS read_data file"""
 import numpy as np
 import os
 import sys
