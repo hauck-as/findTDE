@@ -7,8 +7,8 @@ project = 'findTDE'
 copyright = '2023, Alexander S. Hauck'
 author = 'Alexander S. Hauck'
 
-release = '0.2'
-version = '1.0.4'
+release = '0.3'
+version = '1.0.5'
 
 # -- General configuration
 
