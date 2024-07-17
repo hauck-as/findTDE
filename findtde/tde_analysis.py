@@ -379,9 +379,9 @@ def tde_thrm_data_gather(ofile='all_tde_data_lmp_thrm.csv', tde_calc_dir=base_pa
     return tde_thrm_dict
 
 
-def something(knockout_atom_type, knockout_atom_num, run_type='vasp', base_path=base_path):
+def evaluate_tdes(knockout_atom_type, knockout_atom_num, run_type='vasp', base_path=base_path, annotate_pseudos=False, interpolate_heatmap=False):
     """
-    Function to
+    Function to execute all analysis and plotting functions for find_tde calculations.
     """
     knockout_atom = knockout_atom_type.lower() + str(knockout_atom_num)
 
@@ -411,28 +411,39 @@ def something(knockout_atom_type, knockout_atom_num, run_type='vasp', base_path=
 
     ######## TDE data ########
     if run_type == 'vasp':
-        # organize data from csv file into dataframes
+        # organize data from csv file into dataframes and plot lineplot
         all_find_tde_dfs, pseudo_keys = find_tde_analysis([knockout_atom_type.capitalize()], [knockout_atom_num], datafile='all_tde_data.csv', keyfile=(base_path / 'latt_dirs_to_calc.csv'))
         find_tde_df = all_find_tde_dfs[knockout_atom][1]
+
+        generate_tde_line_plot(find_tde_df, im_write=True, im_name='tde_lineplot.png')
         
-        # reorganize data into array
+        # reorganize data into array and plot scatter plot
         tde_sph_arr, tde_pseudos = generate_tde_sph_arr(find_tde_df, pseudo_keys, lattice_vecs=vasp_lattice_vecs, e_tol=1.0, ke_cut=45, polar_offset=angle_between([1., 0., 0.], vasp_lattice_vecs[0]))
         
+        generate_tde_scatter_plot(tde_sph_arr, tde_pseudos, txt_show=annotate_pseudos, im_write=True, im_name='tde_scatter.png')
+
         # from Victor, read data into a (nsamples x 3) array (x, y, f(x, y)), interpolate and plot heatmap data
-        # ps_tde, ts_tde, es_tde = idw_heatmap(tde_sph_arr, RES=tde_sph_arr.shape[0], P=5)
+        if interpolate_heatmap:
+            ps_tde, ts_tde, es_tde = idw_heatmap(tde_sph_arr, RES=tde_sph_arr.shape[0], P=5)
+
+            generate_tde_heatmap_plot(ps_tde, ts_tde, es_tde, im_write=True, im_name='tde_heatmap.png')
         
     elif run_type == 'lammps':
-        # organize data from csv file into dataframes
+        # organize data from csv file into dataframes and plot lineplot
         all_find_tde_lmp_dfs, lmp_pseudo_keys = find_tde_analysis([knockout_atom_type.capitalize()], [knockout_atom_num], datafile='all_tde_data_lmp.csv', keyfile=(base_path / 'latt_dirs_to_calc.csv'))
         find_tde_lmp_df = all_find_tde_lmp_dfs[knockout_atom][1]
+
+        generate_tde_line_plot(find_tde_lmp_df, im_write=True, im_name='tde_lineplot.png')
         
-        # reorganize data into array
+        # reorganize data into array and plot scatter plot
         tde_lmp_sph_arr, tde_lmp_pseudos = generate_tde_sph_arr(find_tde_lmp_df, lmp_pseudo_keys, lattice_vecs=vasp_lattice_vecs, e_tol=1.0, ke_cut=100, polar_offset=angle_between([1., 0., 0.], vasp_lattice_vecs[0]))
         
+        generate_tde_scatter_plot(tde_lmp_sph_arr, tde_lmp_pseudos, txt_show=annotate_pseudos, im_write=True, im_name='tde_scatter.png')
+
         # from Victor, read data into a (nsamples x 3) array (x, y, f(x, y)), interpolate and plot heatmap data
-        # ps_lmp_tde, ts_lmp_tde, es_lmp_tde = idw_heatmap(tde_lmp_sph_arr, RES=tde_lmp_sph_arr.shape[0], P=5)
-    
-    generate_tde_line_plot(find_tde_df, im_write=True, im_name='tde_lineplot.png')
-    generate_tde_scatter_plot(tde_sph_arr, tde_pseudos, txt_show=False, im_write=True, im_name='tde_scatter.png')
+        if interpolate_heatmap:
+            ps_lmp_tde, ts_lmp_tde, es_lmp_tde = idw_heatmap(tde_lmp_sph_arr, RES=tde_lmp_sph_arr.shape[0], P=5)
+
+            generate_tde_heatmap_plot(ps_lmp_tde, ts_lmp_tde, es_lmp_tde, im_write=True, im_name='tde_heatmap.png')
     
     return
