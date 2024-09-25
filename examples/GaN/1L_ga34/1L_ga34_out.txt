@@ -1,0 +1,162 @@
+Lattice Direction Pseudo: 1L
+Atom....................: ga
+Atom Number.............: 34
+Convergence Mode........: midpoint
+===========================
+Eperf: -1823.367805
+KE: 25 eV, run number 1
+direction:  [-1  4  1]
+velocity vectors:  [[0.02662848 0.07686992 0.01735301]]
+AIMD run submitted
+check 0
+check 0
+check 1
+check 2
+check 3
+check 4
+check 5
+check 6
+check 7
+check 8
+check 9
+AIMD run complete
+CGM run submitted
+check 0
+check 0
+check 1
+check 2
+check 3
+CGM run complete
+Final energy: -1823.36689246 eV
+Efin - Eperf = -1823.36689246 eV - -1823.367805 eV = .00091254 eV
+KE separation: 25 - 25 = 0 eV
+New loop started, trying: 33 eV
+KE: 33 eV, run number 2
+direction:  [-1  4  1]
+velocity vectors:  [[0.03059379 0.08831682 0.0199371 ]]
+AIMD run submitted
+check 0
+check 0
+check 1
+check 2
+check 3
+check 4
+check 5
+check 6
+check 7
+AIMD run complete
+CGM run submitted
+check 0
+check 0
+check 1
+check 2
+check 3
+CGM run complete
+Final energy: -1823.36685564 eV
+Efin - Eperf = -1823.36685564 eV - -1823.367805 eV = .00094936 eV
+KE separation: 25 - 33 = -8 eV
+New loop started, trying: 41 eV
+KE: 41 eV, run number 3
+direction:  [-1  4  1]
+velocity vectors:  [[0.03410109 0.09844153 0.0222227 ]]
+AIMD run submitted
+check 0
+check 0
+check 1
+check 2
+check 3
+check 4
+check 5
+check 6
+check 7
+AIMD run complete
+CGM run submitted
+check 0
+check 0
+check 1
+check 2
+check 3
+check 4
+CGM run complete
+Final energy: -1811.86951470 eV
+Efin - Eperf = -1811.86951470 eV - -1823.367805 eV = 11.49829030 eV
+KE separation: 41 - 33 = 8 eV
+New loop started, trying: 37 eV
+KE: 37 eV, run number 4
+direction:  [-1  4  1]
+velocity vectors:  [[0.03239494 0.0935163  0.02111085]]
+AIMD run submitted
+check 0
+check 0
+check 1
+check 2
+check 3
+check 4
+check 5
+check 6
+check 7
+AIMD run complete
+CGM run submitted
+check 0
+check 0
+check 1
+check 2
+check 3
+check 4
+CGM run complete
+Final energy: -1811.82968554 eV
+Efin - Eperf = -1811.82968554 eV - -1823.367805 eV = 11.53811946 eV
+KE separation: 37 - 33 = 4 eV
+New loop started, trying: 35 eV
+KE: 35 eV, run number 5
+direction:  [-1  4  1]
+velocity vectors:  [[0.03150724 0.09095372 0.02053236]]
+AIMD run submitted
+check 0
+check 0
+check 1
+check 2
+check 3
+check 4
+check 5
+check 6
+check 7
+AIMD run complete
+CGM run submitted
+check 0
+check 0
+check 1
+check 2
+check 3
+CGM run complete
+Final energy: -1811.86830739 eV
+Efin - Eperf = -1811.86830739 eV - -1823.367805 eV = 11.49949761 eV
+KE separation: 35 - 33 = 2 eV
+New loop started, trying: 34 eV
+KE: 34 eV, run number 6
+direction:  [-1  4  1]
+velocity vectors:  [[0.03105388 0.08964496 0.02023692]]
+AIMD run submitted
+check 0
+check 0
+check 1
+check 2
+check 3
+check 4
+check 5
+check 6
+check 7
+check 8
+check 9
+AIMD run complete
+CGM run submitted
+check 0
+check 0
+check 1
+check 2
+check 3
+CGM run complete
+Final energy: -1811.86781069 eV
+Efin - Eperf = -1811.86781069 eV - -1823.367805 eV = 11.49999431 eV
+KE separation: 34 - 33 = 1 eV
+Loop complete, TDE found: 34 eV

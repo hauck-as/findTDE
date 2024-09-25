@@ -1,0 +1,27 @@
+SYSTEM = GaN 553 CGM
+
+NCORE   = 24
+
+ISMEAR  = 0  ! Gaussian smearing
+SIGMA   = 0.05 ! with defects, 0.2 leads to occupation issues
+SYMPREC = 0.001
+ISYM    = 0
+LREAL   = AUTO
+
+ALGO    = Fast  ! mix of Davidson and RMM-DIIS algorithms
+EDIFF   = 0.0002  ! eV, global break condition for electronic SC-loop
+ENCUT   = 400  ! eV, cutoff energy for plane-wave-basis set
+IBRION  = 2  ! ionic relaxation (conjugate gradient algorithm)
+ISIF    = 0  ! pos DOF (no cell shape/volume DOF)
+ISPIN   = 2  ! spin-polarized calculations (collinear) performed
+LASPH   = True  ! non-spherical contributions from gradient corrections inside PAW spheres included
+LMAXMIX = 4  ! for d-electrons, PAW charge densities passed through charge density mixer & written to CHGCAR
+LORBIT  = 11  ! RWIGS ignored, DOSCAR and lm-decomposed PROCAR written
+LWAVE   = False  ! wavefunctions not written to WAVECAR
+MAGMOM  = 300*0.6  ! specifies initial magnetic moment for each atom
+NELM    = 100  ! max number of electronic SC steps (100)
+NSW     = 99  ! max number of ionic steps (99)
+PREC    = Accurate  ! accurate precision mode
+
+NWRITE = 0
+NBLOCK = 10
