@@ -70,11 +70,11 @@ The input file "latt_dirs_to_calc.csv" is required to specify the displacement e
 ---------
 Citations
 ---------
-If you use `findTDE` in your research, please cite:
+If you use ``findTDE`` in your research, please cite:
 
-* A.\ S.\ Hauck, M.\ Jin, and B.\ R.\ Tuttle, “Atomic displacement threshold energies and defect generation in GaN, AlN, and AlGaN: A high-throughput molecular dynamics investigation,” Applied Physics Letters, vol. 124, no. 15, p. 152107, Apr. 2024, `doi: 10.1063/5.0190371 <https://doi.org/10.1063/5.0190371>`_.
+* A.\  S.\  Hauck, M.\  Jin, and B.\  R.\  Tuttle, “Atomic displacement threshold energies and defect generation in GaN, AlN, and AlGaN: A high-throughput molecular dynamics investigation,” Applied Physics Letters, vol. 124, no. 15, p. 152107, Apr. 2024, `doi: 10.1063/5.0190371 <https://doi.org/10.1063/5.0190371>`_.
 
 ----------------
 Acknowledgements
 ----------------
-The findTDE code was developed by Alexander Hauck, Dr. Mia Jin, and Dr. Blair Tuttle at The Pennsylvania State University.
+The ``findTDE`` code was developed by Alexander Hauck, Dr. Mia Jin, and Dr. Blair Tuttle at The Pennsylvania State University.
