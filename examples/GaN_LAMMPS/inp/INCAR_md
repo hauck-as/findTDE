@@ -1,0 +1,26 @@
+SYSTEM = GaN 553 AIMD
+
+! Initialization Parameters
+NCORE   = 24
+
+! Global Parameters
+LREAL   = AUTO      ! Real space project yes/no
+ISYM    = 0         ! symmetry switched off, reduces sampling of Brillouin zones
+ALGO    = Fast      ! mix of Davidson and RMM-DIIS algorithms
+ENCUT   = 400       ! eV, cutoff energy for plane-wave-basis set
+PREC    = Accurate  ! accurate precision mode
+
+! Relaxation Parameters
+ISMEAR  = 0       ! Gaussian smearing
+SIGMA   = 0.05    ! eV, width of smearing (ignored for tetrahedron method)
+IBRION  = 0       ! MD (treat ionic dgr of freedom)
+NSW     = 1000    ! max number of ionic steps (1000)
+POTIM   = 1       ! MD time step in fs
+ISIF    = 0       ! no stress tensor calc, pos DOF (no cell shape/volume DOF)
+SYMPREC = 0.001   ! POSCAR positional accuracy
+
+! Output Parameters
+NWRITE  = 0        ! OUTCAR verbosity
+NBLOCK = 10        ! XDATCAR verbosity 
+LWAVE   = False    ! write WAVECAR
+LCHARG  = .FALSE.  ! write CHGCAR, CHG

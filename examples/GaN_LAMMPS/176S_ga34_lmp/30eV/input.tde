@@ -1,0 +1,63 @@
+# Input file for recoil events (mimic AIMD setup, 0K), not ideal for general simulations
+
+# ------------------------ INITIALIZATION ----------------------------
+echo both
+units 		metal
+dimension	3
+boundary	p	p	p
+atom_style	atomic
+atom_modify map array 
+# ----------------------- ATOM DEFINITION ----------------------------
+
+read_data read_data.lmp 
+
+# Define minimization parameters
+variable etol equal 1.0e-15
+variable ftol equal 1.0e-10
+variable maxiter equal 10000
+variable maxeval equal 100000
+
+mass         1 69.723
+mass         2 14.007
+
+group           Ga type 1
+group           N type 2
+
+variable Natom equal count(all)
+variable N0 equal ${Natom}
+
+# ------------------------ FORCE FIELDS ------------------------------
+pair_style      sw
+pair_coeff      * * AlGaN.sw Ga N
+
+neigh_modify    every 1 delay 0 check yes
+thermo 100                                                               
+thermo_style custom step dt time press pe temp lx
+min_style	     cg
+minimize ${etol} ${ftol} ${maxiter} ${maxeval}
+run 0
+
+replicate   3 3 2
+variable N1 equal ${Natom}
+group added id > ${N0}
+velocity added set 0.0 0.0 0.0
+run 0
+
+variable      E   equal    "pe"
+variable Ei equal $E
+
+timestep 0.001
+
+fix            1 all nve
+fix            3 all dt/reset 1 1.0e-6 1.0e-3 0.05 units box
+run            10000
+
+dump           1 all custom 100000 dump.final id type x y z
+dump_modify    1 first no 
+min_style	     cg
+minimize ${etol} ${ftol} ${maxiter} ${maxeval}
+variable Ef equal $E
+
+print "Total number of atoms = ${N1}"
+print "Initial energy of atoms = ${Ei}"
+print "Final energy of atoms = ${Ef}"

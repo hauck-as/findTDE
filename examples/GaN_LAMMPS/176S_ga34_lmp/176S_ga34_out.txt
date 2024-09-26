@@ -1,0 +1,83 @@
+Lattice Direction Pseudo: 176S
+Atom....................: ga
+Atom Number.............: 34
+Convergence Mode........: midpoint
+Simulation Program......: lammps
+===========================
+KE: 10 eV, run number 1
+direction:  [ 1.  67.5 75. ]
+velocity vectors:  [[0.01944648 0.04694796 0.01361613]]
+MD run submitted
+check 0
+MD run complete
+Perfect energy: -23416.7637532325 eV
+Final energy: -23416.7637532325 eV
+Efin - Eperf = -23416.7637532325 eV - -23416.7637532325 eV = 0 eV
+KE separation: 10 - 10 = 0 eV
+New loop started, trying: 18 eV
+KE: 18 eV, run number 2
+direction:  [ 1.  67.5 75. ]
+velocity vectors:  [[0.02609019 0.06298729 0.01826796]]
+MD run submitted
+check 0
+MD run complete
+Perfect energy: -23416.7637532325 eV
+Final energy: -23416.7637532325 eV
+Efin - Eperf = -23416.7637532325 eV - -23416.7637532325 eV = 0 eV
+KE separation: 10 - 18 = -8 eV
+New loop started, trying: 26 eV
+KE: 26 eV, run number 3
+direction:  [ 1.  67.5 75. ]
+velocity vectors:  [[0.03135651 0.0757013  0.02195536]]
+MD run submitted
+check 0
+MD run complete
+Perfect energy: -23416.7637532325 eV
+Final energy: -23416.7637532325 eV
+Efin - Eperf = -23416.7637532325 eV - -23416.7637532325 eV = 0 eV
+KE separation: 10 - 26 = -16 eV
+New loop started, trying: 34 eV
+KE: 34 eV, run number 4
+direction:  [ 1.  67.5 75. ]
+velocity vectors:  [[0.03585754 0.08656775 0.02510691]]
+MD run submitted
+check 0
+MD run complete
+Perfect energy: -23416.7637532325 eV
+Final energy: -23404.1112234906 eV
+Efin - Eperf = -23404.1112234906 eV - -23416.7637532325 eV = 12.6525297419 eV
+KE separation: 34 - 26 = 8 eV
+New loop started, trying: 30 eV
+KE: 30 eV, run number 5
+direction:  [ 1.  67.5 75. ]
+velocity vectors:  [[0.03368229 0.08131624 0.02358383]]
+MD run submitted
+check 0
+MD run complete
+Perfect energy: -23416.7637532325 eV
+Final energy: -23416.7637532325 eV
+Efin - Eperf = -23416.7637532325 eV - -23416.7637532325 eV = 0 eV
+KE separation: 34 - 30 = 4 eV
+New loop started, trying: 32 eV
+KE: 32 eV, run number 6
+direction:  [ 1.  67.5 75. ]
+velocity vectors:  [[0.03478692 0.08398306 0.02435728]]
+MD run submitted
+check 0
+MD run complete
+Perfect energy: -23416.7637532325 eV
+Final energy: -23416.7637532325 eV
+Efin - Eperf = -23416.7637532325 eV - -23416.7637532325 eV = 0 eV
+KE separation: 34 - 32 = 2 eV
+New loop started, trying: 33 eV
+KE: 33 eV, run number 7
+direction:  [ 1.  67.5 75. ]
+velocity vectors:  [[0.03532629 0.0852852  0.02473493]]
+MD run submitted
+check 0
+MD run complete
+Perfect energy: -23416.7637532325 eV
+Final energy: -23403.4171608338 eV
+Efin - Eperf = -23403.4171608338 eV - -23416.7637532325 eV = 13.3465923987 eV
+KE separation: 33 - 32 = 1 eV
+Loop complete, TDE found: 33 eV

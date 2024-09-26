@@ -1,0 +1,5 @@
+Regular k-point mesh
+0              ! 0 -> determine number of k points automatically
+Gamma          ! generate a Gamma centered mesh
+1  1  1        ! subdivisions N_1, N_2 and N_3 along the reciprocal lattice vectors
+0  0  0        ! optional shift of the mesh (s_1, s_2, s_3)

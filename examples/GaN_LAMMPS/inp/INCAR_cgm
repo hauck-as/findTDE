@@ -1,0 +1,32 @@
+SYSTEM = GaN 553 CGM
+
+! Initialization Parameters
+NCORE   = 24
+
+! Global Parameters
+LREAL   = AUTO      ! Real space project yes/no
+ISYM    = 0         ! symmetry switched off, reduces sampling of Brillouin zones
+ALGO    = Fast      ! mix of Davidson and RMM-DIIS algorithms
+ENCUT   = 400       ! eV, cutoff energy for plane-wave-basis set
+ISPIN   = 2         ! spin-polarized calculations (collinear) performed
+MAGMOM  = 300*0.6   ! specifies initial magnetic moment for each atom
+PREC    = Accurate  ! accurate precision mode
+
+! Relaxation Parameters
+ISMEAR  = 0       ! Gaussian smearing
+SIGMA   = 0.05    ! eV, width of smearing (ignored for tetrahedron method)
+EDIFF   = 0.0002  ! eV, global break condition for electronic SC-loop
+IBRION  = 2       ! ionic relaxation (conjugate gradient algorithm)
+NELM    = 100     ! max number of electronic SC steps
+NSW     = 99      ! max number of ionic steps
+ISIF    = 0       ! no stress tensor calc, pos DOF (no cell shape/volume DOF)
+SYMPREC = 0.001   ! POSCAR positional accuracy
+
+! Output Parameters
+NWRITE = 0        ! OUTCAR verbosity
+NBLOCK = 10       ! XDATCAR verbosity
+LASPH   = True    ! non-spherical contributions from gradient corrections inside PAW spheres included
+! LMAXMIX = 4       ! for d-electrons, PAW charge densities passed through charge density mixer & written to CHGCAR
+LORBIT  = 11      ! RWIGS ignored, DOSCAR and lm-decomposed PROCAR written
+LWAVE   = False   ! write WAVECAR
+! LCHARG  = .TRUE.  ! write CHGCAR, CHG
