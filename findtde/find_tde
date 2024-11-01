@@ -1,8 +1,4 @@
 #!/bin/bash
-# call find_tde with arguments
-# 1: atom
-# 2: atom number
-# etc.
 
 shopt -s extglob
 ########################################
@@ -56,6 +52,8 @@ shift $((OPTIND-1))
 ########################################
 # set variables for directories
 ########################################
+prog_path=$(dirname "$0")
+
 base_path="${PWD}"
 bin_path="${base_path}/bin/"
 inp_path="${base_path}/inp/"
@@ -189,7 +187,7 @@ while true; do
 # calculate and write to velocity txt file
 ########################################
   # call Python file with KE_cur and latt_dir_pseudo
-  vasp_vel_write.py ${atom_type} ${atom_num} ${latt_dir_pseudo} ${sim_prog} || exit
+  ${prog_path}/vasp_vel_write.py ${atom_type} ${atom_num} ${latt_dir_pseudo} ${sim_prog} || exit
   
   cd ${kinE_path} || exit
 
@@ -204,8 +202,8 @@ while true; do
 # sbatch run_args.slurm
 ########################################
     if [ ! -f "OUTCAR" ]; then
-      # sbatch --nodes=6  --time=48:00:00 --account=mjj5508_b --partition=sla-prio --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_AIMD run_args.slurm
-      vasp_std
+      # sbatch --nodes=6  --time=48:00:00 --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_AIMD run_args.slurm
+      srun vasp_std > vasp.out || mpirun vasp_std > vasp.out
       echo "AIMD run submitted" >> "${out_file}"
     else
       echo "AIMD run already completed" >> "${out_file}"
@@ -259,7 +257,8 @@ while true; do
 ########################################
     cd ${cgm_path} || exit
     if [ ! -f "OUTCAR" ]; then
-      sbatch --nodes=2  --time=24:00:00 --account=open --partition=open --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_CGM run_args.slurm
+      # sbatch --nodes=2  --time=24:00:00 --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_CGM run_args.slurm
+      srun vasp_std > vasp.out || mpirun vasp_std > vasp.out
       echo "CGM run submitted" >> "${out_file}"
     else
       echo "CGM run already completed" >> "${out_file}"
@@ -301,14 +300,15 @@ while true; do
 # !!run LAMMPS calculation
 ########################################
   elif [ "${sim_prog}" = "lammps" ]; then
-    poscar2lmp.py || exit
+    ${prog_path}/poscar2lmp.py || exit
 
 ########################################
 # submit MD job
 # sbatch run_args.slurm
 ########################################
     if [ ! -f "log.lammps" ]; then
-      sbatch --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_MD run_lmp.slurm
+      # sbatch --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_MD run_lmp.slurm
+      srun lmp -screen none -in input.tde || mpirun lmp -screen none -in input.tde
       echo "MD run submitted" >> "${out_file}"
     else
       echo "MD run already completed" >> "${out_file}"
