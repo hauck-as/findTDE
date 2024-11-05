@@ -1,6 +1,6 @@
 [project]
 name = "findtde"
-version = "1.1.0"
+dynamic = ["version"]
 authors = [
   { name="Alexander Hauck", email="ash5615@psu.edu" },
 ]
@@ -33,12 +33,11 @@ Repository = "https://github.com/hauck-as/findTDE"
 [project.scripts]
 cli-name = "findtde.cli.main:main"
 
-[tool.setuptools]
-include-package-data = true
-
 [tool.setuptools.packages]
 find = {}  # Scan the project directory with the default parameters
 
+[tool.setuptools_scm]
+
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
