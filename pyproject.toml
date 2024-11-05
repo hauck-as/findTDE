@@ -37,6 +37,8 @@ cli-name = "findtde.cli.main:main"
 find = {}  # Scan the project directory with the default parameters
 
 [tool.setuptools_scm]
+# version_scheme = "only-version"
+local_scheme = "no-local-version"
 
 [build-system]
 requires = ["setuptools>=64", "setuptools_scm>=8"]
