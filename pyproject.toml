@@ -1,6 +1,6 @@
 [project]
 name = "findtde"
-version = "1.0.5"
+version = "1.1.0"
 authors = [
   { name="Alexander Hauck", email="ash5615@psu.edu" },
 ]
@@ -21,7 +21,9 @@ dependencies = [
     "matplotlib",
     "plotly",
     "pymatgen",
-    "fortranformat"
+    "fortranformat",
+    "nbformat",
+    "kaleido"
 ]
 
 [project.urls]
