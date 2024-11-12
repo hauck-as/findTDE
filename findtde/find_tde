@@ -187,7 +187,7 @@ while true; do
 # calculate and write to velocity txt file
 ########################################
   # call Python file with KE_cur and latt_dir_pseudo
-  ${prog_path}/vasp_vel_write.py ${atom_type} ${atom_num} ${latt_dir_pseudo} ${sim_prog} || exit
+  python ${prog_path}/vasp_vel_write.py ${atom_type} ${atom_num} ${latt_dir_pseudo} ${sim_prog} || exit
   
   cd ${kinE_path} || exit
 
@@ -202,7 +202,6 @@ while true; do
 # sbatch run_args.slurm
 ########################################
     if [ ! -f "OUTCAR" ]; then
-      # sbatch --nodes=6  --time=48:00:00 --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_AIMD run_args.slurm
       srun vasp_std > vasp.out || mpirun vasp_std > vasp.out
       echo "AIMD run submitted" >> "${out_file}"
     else
@@ -219,8 +218,6 @@ while true; do
   
     while true; do
       if [[ -f "OUTCAR" && ${aimd_check_num} = -1 ]]; then
-        # aimd_slurm=$(ls -l slurm-*+([0-9])*.out | awk '{print $9}')
-        # echo "check ${aimd_slurm}" >> "${out_file}"
         aimd_check_num=$(bc -l <<< "${aimd_check_num}+1")
         echo "check ${aimd_check_num}" >> "${out_file}"
       elif [[ -f "OUTCAR" && ${aimd_check_num} -gt -1 ]]; then
@@ -257,7 +254,6 @@ while true; do
 ########################################
     cd ${cgm_path} || exit
     if [ ! -f "OUTCAR" ]; then
-      # sbatch --nodes=2  --time=24:00:00 --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_CGM run_args.slurm
       srun vasp_std > vasp.out || mpirun vasp_std > vasp.out
       echo "CGM run submitted" >> "${out_file}"
     else
@@ -274,8 +270,6 @@ while true; do
   
     while true; do
       if [[ -f "OUTCAR" && ${cgm_check_num} = -1 ]]; then
-        # cgm_slurm=$(ls -l slurm-*+([0-9])*.out | awk '{print $9}')
-        # echo "check ${cgm_slurm}" >> "${out_file}"
         cgm_check_num=$(bc -l <<< "${cgm_check_num}+1")
         echo "check ${cgm_check_num}" >> "${out_file}"
       elif [[ -f "OUTCAR" && ${cgm_check_num} -gt -1 ]]; then
@@ -300,14 +294,13 @@ while true; do
 # !!run LAMMPS calculation
 ########################################
   elif [ "${sim_prog}" = "lammps" ]; then
-    ${prog_path}/poscar2lmp.py || exit
+    python ${prog_path}/poscar2lmp.py || exit
 
 ########################################
 # submit MD job
 # sbatch run_args.slurm
 ########################################
     if [ ! -f "log.lammps" ]; then
-      # sbatch --job-name=${latt_dir_pseudo}_${atom_type}${atom_num}_MD run_lmp.slurm
       srun lmp -screen none -in input.tde || mpirun lmp -screen none -in input.tde
       echo "MD run submitted" >> "${out_file}"
     else

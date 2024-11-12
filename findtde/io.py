@@ -2,13 +2,36 @@
 """Python module of file management functions for findTDE calculations."""
 import os
 import glob
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import importlib.resources as ilr
 
 import numpy as np
 import pandas as pd
 
 base_path = Path.cwd()
 bin_path, inp_path, perfect_path = base_path / 'bin', base_path / 'inp', base_path / 'perfect'
+
+
+def append_ftde_path(shell_config=".bashrc"):
+    """
+    Function to append the findTDE path to the chosen shell configuration file.
+    """
+    ftde_path = f"{ilr.files('findtde')}/"
+    ftde_alias_line = f"export PATH={ftde_path}:${{PATH}}\n"
+
+    # gather data from shell config file
+    with open(Path.home() / shell_config, 'r') as rcf:
+        config_data = rcf.readlines()
+    
+    # append alias line to config data
+    config_data.append('\n# findTDE path\n')
+    config_data.append(ftde_alias_line)
+
+    # re-write shell config
+    with open(Path.home() / shell_config, 'w') as rcf:
+        rcf.write(''.join(config_data))
+
+    return ftde_path
 
 
 def find_contcars(tde_calc_dir=base_path, pseudo='*'):
