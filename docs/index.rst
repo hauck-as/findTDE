@@ -78,3 +78,10 @@ If you use ``findTDE`` in your research, please cite:
 Acknowledgements
 ----------------
 The ``findTDE`` code was developed by Alexander Hauck, Dr. Mia Jin, and Dr. Blair Tuttle at The Pennsylvania State University.
+
+.. toctree::
+    :hidden:
+    :caption: Usage
+    :maxdepth: 4
+
+    Tutorials

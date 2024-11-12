@@ -1,10 +1,4 @@
 # `findTDE` upcoming work
-* remove dependence on slurm submission script and make more transferrable
--> how to do: need most of script to operate in typical directory and exclusively perform VASP calculations outside
-    * script itself may be fine, just replacing slurm submission with vasp execution
-    * maybe use flags in pbs script to determine when to perform elsewhere: execute find_tde until specific comment line, perform a command, then continue original script
-    * could set up multiple functions then on script call, execute certain functions
-    * option to specify separate directory for executing vasp?
 * add in VASP ML utility
 
 ## multi_tde.py
