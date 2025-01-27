@@ -1,11 +1,11 @@
 #!/bin/bash
 
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=48
+#SBATCH --ntasks-per-node=24
 #SBATCH --mem-per-cpu=8GB
 #SBATCH --time=04:00:00
 #SBATCH --account=open
-#SBATCH --partition=open
+#SBATCH --partition=basic
 #SBATCH --job-name=FTDE
 export OMPI_MCA_mpi_cuda_support=0
 
@@ -20,6 +20,6 @@ conda activate findtde
 
 echo "Start: `date`"
 
-$FTDE_DIR/findtde/find_tde
+$FTDE_DIR/findtde/find_tde -c midpoint -p vasp
 
 echo "End: `date`"

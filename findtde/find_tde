@@ -301,7 +301,7 @@ while true; do
 # sbatch run_args.slurm
 ########################################
     if [ ! -f "log.lammps" ]; then
-      srun lmp -screen none -in input.tde || mpirun lmp -screen none -in input.tde
+      srun lmp -in input.tde || mpiexec lmp -in input.tde
       echo "MD run submitted" >> "${out_file}"
     else
       echo "MD run already completed" >> "${out_file}"
