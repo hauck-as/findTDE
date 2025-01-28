@@ -81,10 +81,17 @@ def vasp_inp_match_check(poscar_filepath, potcar_filepath):
     for i in range(len(pot_spec_lines_list)):
         pot_spec_list.append(re.split(r'[;,\s]\s*', pot_spec_lines_list[i])[4])
     
-    if pos_spec_list == pot_spec_list:
-        return True
-    else:
-        return False
+    for pos_ele in pos_spec_list:
+        for pot_ele in pot_spec_list:
+            if pos_ele.lower() == pot_ele.lower()[:len(pos_ele)]:
+                pos_pot_ele_match = True
+            elif pos_ele.lower() != pot_ele.lower()[:len(pos_ele)]:
+                pos_pot_ele_match = False
+                break
+            else:
+                print('Error regarding POSCAR/POTCAR species')
+    
+    return pos_pot_ele_match
 
 
 # velocity vector calculation function
