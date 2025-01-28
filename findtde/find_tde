@@ -187,7 +187,7 @@ while true; do
 # calculate and write to velocity txt file
 ########################################
   # call Python file with KE_cur and latt_dir_pseudo
-  python ${prog_path}/vasp_vel_write.py ${atom_type} ${atom_num} ${latt_dir_pseudo} ${sim_prog} || exit
+  python ${prog_path}/vasp_vel_write.py ${atom_type} ${atom_num} ${latt_dir_pseudo} ${sim_prog} >> "${out_file}" || exit
   
   cd ${kinE_path} || exit
 
@@ -294,7 +294,7 @@ while true; do
 # !!run LAMMPS calculation
 ########################################
   elif [ "${sim_prog}" = "lammps" ]; then
-    python ${prog_path}/poscar2lmp.py || exit
+    python ${prog_path}/poscar2lmp.py >> "${out_file}" || exit
 
 ########################################
 # submit MD job
