@@ -62,7 +62,7 @@ def vasp_inp_match_check(poscar_filepath, potcar_filepath):
     pos_f.close()
     
     # convert species names line from POSCAR file from Fortran to a list 
-    pos_spec_line = ff.FortranRecordReader('(10A5)')  # arbitrarily choose max species number of 10
+    pos_spec_line = ff.FortranRecordReader('(10A2)')  # arbitrarily choose max species number of 10
     pos_species = pos_lines[5]
     pos_spec_list = pos_spec_line.read(pos_species)
     for i in range(len(pos_spec_list)):
