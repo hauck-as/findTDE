@@ -5,7 +5,8 @@ import subprocess
 import sys
 import re
 import math as m
-import fortranformat as ff
+from pymatgen.io.vasp import Poscar, Potcar
+from pymatgen.io.lammps.inputs import LammpsInputFile
 import numpy as np
 
 atom_type, atom_num, lat_dir_pseudo, sim_prog = str(sys.argv[1]), int(sys.argv[2]), str(sys.argv[3]), str(sys.argv[4])
@@ -15,16 +16,27 @@ base_path = os.getcwd()
 bin_path, inp_path, perfect_path = os.path.relpath('bin', base_path), os.path.relpath('inp', base_path), os.path.relpath('perfect', base_path)
 if sim_prog == 'vasp':
     tde_run_path = os.path.relpath(lat_dir_pseudo + '_' + atom_type + str(atom_num), base_path)
+    # set atomic weights from POTCAR
+    mass_lines = subprocess.run(['grep', 'POMASS', os.path.join(inp_path, 'POTCAR')], capture_output = True, text = True)
+    mass_lines_list = mass_lines.stdout.split('\n ')
+    atomic_masses = []
+    for i in range(len(mass_lines_list)):
+        atomic_masses.append(float(re.search(r'\d+.\d+', mass_lines_list[i]).group()))
 elif sim_prog == 'lammps':
     tde_run_path = os.path.relpath(lat_dir_pseudo + '_' + atom_type + str(atom_num) + '_lmp', base_path)
+    # set atomic weights from LAMMPS input file
+    lmp_inp_f = LammpsInputFile.from_file(os.path.join(inp_path, 'input.tde'))
+    mass_list, group_list = lmp_inp_f.get_args('mass'), lmp_inp_f.get_args('group')
+    atom_mass_dict = {}
+    for i in group_list:
+        if 'type' in i:
+            atom_id_list = i.split(' type ')
+            for j in mass_list:
+                id_mass_list = j.split(' ')
+                if atom_id_list[1] == id_mass_list[0]:
+                    atom_mass_dict.update({atom_id_list[0]: float(id_mass_list[1])})
+    atomic_masses = list(atom_mass_dict.values())
 tde_run_outfile_path = os.path.relpath(os.path.join(tde_run_path, lat_dir_pseudo + '_' + atom_type + str(atom_num) + '_out.txt'), base_path)
-
-# set atomic weights from POTCAR
-mass_lines = subprocess.run(['grep', 'POMASS', os.path.join(inp_path, 'POTCAR')], capture_output = True, text = True)
-mass_lines_list = mass_lines.stdout.split('\n ')
-atomic_masses = []
-for i in range(len(mass_lines_list)):
-    atomic_masses.append(float(re.search(r'\d+.\d+', mass_lines_list[i]).group()))
 
 
 # utility functions
@@ -56,36 +68,20 @@ def vasp_inp_match_check(poscar_filepath, potcar_filepath):
     Function to compare the order of elements in the POSCAR file to the order of
     elements in the POTCAR file and ensure the order matches.
     """
-    # open POSCAR file and read lines into a list
-    pos_f = open(poscar_filepath, 'r')
-    pos_lines = pos_f.readlines()
-    pos_f.close()
-    
-    # convert species names line from POSCAR file from Fortran to a list 
-    pos_spec_line = ff.FortranRecordReader('(10A2)')  # arbitrarily choose max species number of 10
-    pos_species = pos_lines[5]
-    pos_spec_list = pos_spec_line.read(pos_species)
-    for i in range(len(pos_spec_list)):
-        pos_spec_list[i] = pos_spec_list[i].strip()
-    pos_spec_list = list(filter(None, pos_spec_list)) # remove empty values from list
-    
-    # open POTCAR file and read lines into a list
-    pot_f = open(potcar_filepath, 'r')
-    pot_lines = pot_f.readlines()
-    pot_f.close()
-    
-    # find POTCAR lines with species names
-    pot_spec_lines = subprocess.run(['grep', 'TITEL', potcar_filepath], capture_output = True, text = True)
-    pot_spec_lines_list = pot_spec_lines.stdout.split('\n ')
-    pot_spec_list = []
-    for i in range(len(pot_spec_lines_list)):
-        pot_spec_list.append(re.split(r'[;,\s]\s*', pot_spec_lines_list[i])[4])
-    
+    # read in POSCAR and POTCAR using pymatgen
+    pos_file, pot_file = Poscar.from_file(poscar_filepath), Potcar.from_file(potcar_filepath)
+
+    # get list of species in POSCAR and POTCAR files
+    pos_spec_list, pot_spec_list = pos_file.site_symbols, pot_file.symbols
+
+    # compare lists
     for ele_idx in range(len(pos_spec_list)):
         pos_ele, pot_ele = pos_spec_list[ele_idx], pot_spec_list[ele_idx]
-        if pos_ele.lower() == pot_ele.lower()[:len(pos_ele)]:
+        pos_ele = pos_ele.lower()
+        pot_ele = pot_ele.lower().split('_')[0]
+        if pos_ele == pot_ele:
             pos_pot_ele_match = True
-        elif pos_ele.lower() != pot_ele.lower()[:len(pos_ele)]:
+        elif pos_ele != pot_ele:
             pos_pot_ele_match = False
             break
         else:
@@ -118,53 +114,31 @@ def lat_vel_calc(M, E, dir):
 
 
 # writing formatted velocity vector to POSCAR file
-def vel_to_POSCAR(vel, atom_type, atom_no, filepath):
+def vel_to_POSCAR(vel_vec, atom_type, atom_no, filepath):
     """
     Function to write velocity vector of an atom in the lattice to the POSCAR file.
     Given a velocity vector (Ang./fs), atom type, and the number of the atom
     (from the POSCAR file). The velocity vector is a 1D numpy array, the atom
     type is a pymatgen Element, and the atom number is an integer.
     """
-    # open POSCAR file and read lines into a list
-    f = open(filepath, 'r')
-    f_lines = f.readlines()
-    f.close()
-    
-    # convert velocity vector into Fortran format
-    vel_line = ff.FortranRecordWriter('(3E16.8)')
-    vel_vector = vel_line.write(vel)+'\n'
-    
-    # convert species names line from POSCAR file from Fortran to a list 
-    spec_line = ff.FortranRecordReader('(10A5)')  # arbitrarily choose max species number of 10
-    species = f_lines[5]
-    spec_list = spec_line.read(species)
-    for i in range(len(spec_list)):
-        spec_list[i] = spec_list[i].strip()
-    spec_list = list(filter(None, spec_list)) # remove empty values from list
-    
-    # convert ions per species line from POSCAR file from Fortran to a list
-    no_line = ff.FortranRecordReader('(10I6)')  # arbitrarily choose max species number of 10
-    ion_nos = f_lines[6]
-    no_list = no_line.read(ion_nos)
-    no_list = list(filter(None, no_list)) # remove empty values from list
+    # read in POSCAR with pymatgen
+    pos_file = Poscar.from_file(filepath)
+    spec_list = pos_file.site_symbols
+    no_list = pos_file.natoms
     total_ions = sum(no_list)
-    
-    # check if empty velocity lines exist, if not, add lines
-    if len(f_lines) < 2*total_ions:
-        if f_lines[-1].isspace() == False:
-            f_lines += ['\n']
-        f_lines += ['\n'] + [vel_line.write(np.array([0, 0, 0]))+'\n' for i in range(total_ions)]
+
+    # set velocity list to array of zeros for all atoms
+    vel_arr_list = [np.zeros(3) for i in range(total_ions)]
     
     # replace velocity line for desired atom with converted velocity vector
-    for i in range(len(spec_list)):           
+    for i in range(len(spec_list)):
         if atom_type.lower() in spec_list[i].lower():
-            f_lines[8+total_ions+atom_no+sum(no_list[:i])] = vel_vector
+            vel_arr_list[atom_no+sum(no_list[:i])-1] = vel_vec
+
+    # set velocities in POSCAR to velocity array
+    pos_file.velocities = vel_arr_list
     
-    f = open(filepath, 'w+')
-    f.writelines(f_lines)
-    f.close()
-    
-    return
+    pos_file.write_file(filepath)
 
 
 # read lattice directions and kinetic energies from text files
@@ -193,24 +167,10 @@ pot_file = os.path.join(tde_kinE_path, 'POTCAR')
 if vasp_inp_match_check(pos_file, pot_file) == False:
     raise ValueError
 
-# open POSCAR file and read lines into a list
-pos_f = open(pos_file, 'r')
-pos_lines = pos_f.readlines()
-pos_f.close()
-
-# open POSCAR file and read lattice vector lines into a list
-ai = [pos_lines[2][1:-1], pos_lines[3][1:-1], pos_lines[4][1:-1]]
-
-# convert lattice vectors line from POSCAR file from Fortran to a list
-lat_vec_line = ff.FortranRecordReader('(3F22.16)')
-lat_vecs = np.array([lat_vec_line.read(ai[j]) for j in range(len(ai))])
-
-# convert species names line from POSCAR file from Fortran to a list
-pos_spec_line = ff.FortranRecordReader('(10A5)')
-pos_species = pos_lines[5]
-pos_spec_list = pos_spec_line.read(pos_species)
-for i in range(len(pos_spec_list)):
-    pos_spec_list[i] = pos_spec_list[i].strip()
+# read in POSCAR file using pymatgen
+pos = Poscar.from_file(pos_file)
+lat_vecs = pos.structure.lattice.matrix
+pos_spec_list = pos.site_symbols
 
 if lat_dir_pseudo[-1] == 'L':
     lat_dir = np.array(lat_dir_list[5:], dtype=int)
