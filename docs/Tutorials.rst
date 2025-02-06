@@ -9,4 +9,4 @@ Example calculations using ``findTDE`` with ``VASP`` and ``LAMMPS`` including da
 .. toctree:
     :maxdepth: 2
 
-    GaN_findTDE_example
+    GaN_findTDE_example <../examples/GaN_findTDE_example>
