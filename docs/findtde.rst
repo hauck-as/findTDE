@@ -5,10 +5,7 @@ findTDE
 
 Base Module
 -----------
-.. automodule:: findtde
-    :members:
-    :undoc-members:
-    :show-inheritance:
+findTDE
 
 Submodules
 ----------
