@@ -6,7 +6,7 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path('..', 'findtde').resolve()))
+sys.path.insert(0, str(Path('..').resolve()))
 
 # -- Project information
 
@@ -88,3 +88,11 @@ html_context = {
 
 # -- Options for EPUB output
 epub_show_urls = 'footnote'
+
+# -- Autodoc configuration
+autodoc_mock_imports = [
+    'os', 'sys', 'pathlib', 'importlib', 'glob', 'pprint', 'warnings', 're', 'subprocess', 'fortranformat',
+    'math', 'numpy', 'pandas', 'random', 'fractions',
+    'matplotlib', 'mpl_toolkits', 'plotly', 'seaborn',
+    'pymatgen', 'ovito'
+    ]
