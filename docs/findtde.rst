@@ -9,8 +9,6 @@ Base Module
     :members:
     :undoc-members:
     :show-inheritance:
-    :inherited-members:
-    :exclude-members: __init__
 
 Submodules
 ----------
