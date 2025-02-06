@@ -7,4 +7,5 @@ pandas
 fortranformat
 nbformat
 kaleido
+nbsphinx
 sphinx_book_theme
