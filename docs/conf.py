@@ -1,6 +1,13 @@
 # Configuration file for the Sphinx documentation builder.
 # Templated from both RTD tutorial and doped by SMTG-Bham.
 
+# -- Build on source
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path('..', 'src').resolve()))
+
 # -- Project information
 
 project = 'findTDE'
@@ -8,7 +15,7 @@ copyright = '2023, Alexander S. Hauck'
 author = 'Alexander S. Hauck'
 
 release = '1.1'
-version = '1.1.12'
+version = '1.1.13'
 
 # -- General configuration
 
