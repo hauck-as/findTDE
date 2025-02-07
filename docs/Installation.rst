@@ -4,7 +4,7 @@
 Installation
 ============
 
-Automatic installation is available via ``pip``. The files may also be either downloaded manually or using ``git clone``.
+Automatic installation is available via ``pip``.
 
 .. code:: bash
 
@@ -14,7 +14,7 @@ We recommend creating a virtual environment through Conda to manage all necessar
 
 .. code:: bash
 
-    conda create -n findtde python=3.12.0
+    conda create -n findtde python=3.12.8
     conda activate findtde
     pip install findtde
     conda install lammps
