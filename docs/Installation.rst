@@ -10,7 +10,7 @@ Automatic installation is available via ``pip``. The files may also be either do
 
     pip install findtde
 
-We recommend creating a virtual environment through Conda to manage all necessary packages. If you plan to use ``LAMMPS`` to perform calculations, you can install `LAMMPS in the same environment with Conda <https://docs.lammps.org/Install_conda.html>`_.
+We recommend creating a virtual environment through Conda to manage all necessary packages. If you plan to use ``LAMMPS`` to perform calculations, you can `install with Conda <https://docs.lammps.org/Install_conda.html>`_ in the same environment.
 
 .. code:: bash
 
