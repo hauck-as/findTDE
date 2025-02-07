@@ -86,5 +86,6 @@ The ``findTDE`` code was developed by Alexander Hauck, Dr. Mia Jin, and Dr. Blai
     :caption: Usage
     :maxdepth: 4
 
+    Installation
     Tutorials
     findTDE API <findtde>
