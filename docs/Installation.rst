@@ -4,6 +4,25 @@
 Installation
 ============
 
-Automatic installation is available with ``pip install findtde``. The files may also be either downloaded manually or using ``git clone``.
+Automatic installation is available via ``pip``. The files may also be either downloaded manually or using ``git clone``.
 
-We recommend creating a virtual environment through Conda first, then installing ``findTDE``. If you plan to use ``LAMMPS`` to perform calculations, you can install ``LAMMPS`` in the same environment with Conda.
+.. code:: bash
+
+    pip install findtde
+
+We recommend creating a virtual environment through Conda to manage all necessary packages. If you plan to use ``LAMMPS`` to perform calculations, you can install `LAMMPS in the same environment with Conda <https://docs.lammps.org/Install_conda.html>`_.
+
+.. code:: bash
+
+    conda create -n findtde python=3.12.0
+    conda activate findtde
+    pip install findtde
+    conda install lammps
+
+Alternatively, it can be installed for development purposes by cloning the GitHub repository.
+
+.. code:: bash
+
+    git clone https://github.com/hauck-as/findTDE
+    cd findTDE
+    pip install -e .
