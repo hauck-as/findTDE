@@ -5,48 +5,17 @@ findTDE
 
 Base Module
 -----------
-.. code-block:: bash
-
-    Help()
-    {
-    # Display Help
-    echo "Bash script to find TDE value for an atom using VASP AIMD/CGM or LAMMPS MD."
-    echo
-    echo "Syntax: find_tde [-c|p|f|h]"
-    echo "options:"
-    echo "c     KE convergence mode: standard or midpoint"
-    echo "p     Simulation program: vasp or lammps"
-    echo "f     LAMMPS force field: choose file"
-    echo "h     Print this Help."
-    echo
-    }
-
-    usage() { echo "Usage: $0 [-h] [-c <standard|midpoint>] [-p <vasp|lammps>]" 1>&2; exit 1; }
-
-Test2
------
-.. click:: findtde.find_tde:Help
-    :prog: find_tde
-
-Test
-----
 .. code:: bash
 
-    Help()
-    {
-    # Display Help
-    echo "Bash script to find TDE value for an atom using VASP AIMD/CGM or LAMMPS MD."
-    echo
-    echo "Syntax: find_tde [-c|p|f|h]"
-    echo "options:"
-    echo "c     KE convergence mode: standard or midpoint"
-    echo "p     Simulation program: vasp or lammps"
-    echo "f     LAMMPS force field: choose file"
-    echo "h     Print this Help."
-    echo
-    }
+    Bash script to find TDE value for an atom using VASP AIMD/CGM or LAMMPS MD.
+    Syntax: find_tde [-c|p|f|h]
+    options:
+    c     KE convergence mode: standard or midpoint
+    p     Simulation program: vasp or lammps
+    f     LAMMPS force field: choose file
+    h     Print this Help.
 
-    usage() { echo "Usage: $0 [-h] [-c <standard|midpoint>] [-p <vasp|lammps>]" 1>&2; exit 1; }
+    Usage: find_tde [-h] [-c <standard|midpoint>] [-p <vasp|lammps>]
 
 Submodules
 ----------
