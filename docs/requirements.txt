@@ -8,4 +8,5 @@ fortranformat
 nbformat
 kaleido
 nbsphinx
+sphinx-click
 sphinx_book_theme
