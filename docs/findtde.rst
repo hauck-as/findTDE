@@ -6,6 +6,8 @@ findTDE
 Base Module
 -----------
 .. click:: find_tde
+    :prog: find_tde
+    :nested: full
 
 Submodules
 ----------
