@@ -5,7 +5,7 @@ findTDE
 
 Base Module
 -----------
-.. code:: bash
+.. code-block:: bash
     Help()
     {
     # Display Help
