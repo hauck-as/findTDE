@@ -5,7 +5,7 @@ findTDE
 
 Base Module
 -----------
-.. click:: module:parser
+.. click:: findtde.find_tde
     :prog: find_tde
     :nested: full
 
