@@ -15,7 +15,7 @@ Base Module
     f     LAMMPS force field: choose file
     h     Print this Help.
 
-    Usage: find_tde [-h] [-c <standard|midpoint>] [-p <vasp|lammps>]
+    Usage: find_tde [-h] [-c <standard|midpoint>] [-p <vasp|lammps>] [-f <lmp_ff.type>]
 
 Submodules
 ----------

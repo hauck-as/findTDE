@@ -19,7 +19,7 @@ The find_tde script may be called directly from the command line with several op
 
     find_tde [-h] [-c <standard|midpoint>] [-p <vasp|lammps>] [-f <lmp_ff.type>]
 
-The script is currently written to execute via ``Slurm`` workload manager. This can be adjusted temporarily to execute the appropriate program. 
+The script is currently written to execute ``VASP``/``LAMMPS`` via either ``srun`` (used by the ``Slurm`` workload manager) or ``mpiexec``. This can be adjusted temporarily in the main script to execute the appropriate program. 
 
 The script relies on a directory structure. Only the base directory (e.g., "project," can be named anything), main input file ("latt_dirs_to_calc.csv"), inputs directory ("inp"), and perfect supercell directory ("perfect") are required to be made and named as described. ``findTDE`` should be executed in the "project" directory. Each "displacement" directory, associated "energy" directories, and relevant .csv/.txt files are created by the program.
 

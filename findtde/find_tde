@@ -18,7 +18,7 @@ Help()
    echo
 }
 
-usage() { echo "Usage: $0 [-h] [-c <standard|midpoint>] [-p <vasp|lammps>]" 1>&2; exit 1; }
+usage() { echo "Usage: $0 [-h] [-c <standard|midpoint>] [-p <vasp|lammps>] [-f <lmp_ff.type>]" 1>&2; exit 1; }
 
 conv_mode="standard"
 sim_prog="vasp"
