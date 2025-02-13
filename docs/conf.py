@@ -52,7 +52,7 @@ html_theme = 'sphinx_book_theme'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "ftde_log.png"
+html_logo = "ftde_logo.png"
 html_title = "findTDE"
 
 # If true, SmartyPants will be used to convert quotes and dashes to
