@@ -1,9 +1,9 @@
 # required dependencies:
 matplotlib
 plotly
-numpy
+numpy == 1.26.4
 pymatgen
-pandas
+pandas == 2.1.4
 fortranformat
 nbformat
 kaleido
