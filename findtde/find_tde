@@ -12,13 +12,13 @@ Help()
    echo "Syntax: find_tde [-c|p|f|h]"
    echo "options:"
    echo "c     KE convergence mode: standard or midpoint"
-   echo "p     Simulation program: vasp or lammps"
+   echo "p     Simulation program: vasp, lammpsish, or lammps"
    echo "f     LAMMPS force field: choose file"
    echo "h     Print this Help."
    echo
 }
 
-usage() { echo "Usage: $0 [-h] [-c <standard|midpoint>] [-p <vasp|lammps>] [-f <lmp_ff.type>]" 1>&2; exit 1; }
+usage() { echo "Usage: $0 [-h] [-c <standard|midpoint>] [-p <vasp|lammpsish|lammps>] [-f <lmp_ff.type>]" 1>&2; exit 1; }
 
 conv_mode="standard"
 sim_prog="vasp"
@@ -36,7 +36,7 @@ while getopts ":h:c:p:f:" o; do
       ;;
     p) # Enter simulation program
       sim_prog=${OPTARG}
-      ((sim_prog == "vasp" || sim_prog == "lammps")) || usage
+      ((sim_prog == "vasp" || sim_prog == "lammpsish" || sim_prog == "lammps")) || usage
       ;;
     f) # Enter force field for LAMMPS
       lmp_ff=${OPTARG}
@@ -91,7 +91,7 @@ atom_num=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $
 # define & create directory for direction
 if [ "${sim_prog}" = "vasp" ]; then
   tde_run_path="${base_path}/${latt_dir_pseudo}_${atom_type}${atom_num}/"
-elif [ "${sim_prog}" = "lammps" ]; then
+elif [ "${sim_prog}" = "lammpsish" ] || [ "${sim_prog}" = "lammps" ]; then
   tde_run_path="${base_path}/${latt_dir_pseudo}_${atom_type}${atom_num}_lmp/"
 fi
 mkdir -p "${tde_run_path}"
@@ -174,9 +174,13 @@ while true; do
     cp "${inp_path}KPOINTS" "${kinE_path}KPOINTS"
     cp "${inp_path}INCAR_md" "${kinE_path}INCAR"
     cp "${inp_path}POSCAR" "${kinE_path}POSCAR"
-  elif [ "${sim_prog}" = "lammps" ]; then
+  elif [ "${sim_prog}" = "lammpsish" ]; then
     cp "${inp_path}POTCAR" "${kinE_path}POTCAR"
     cp "${inp_path}POSCAR" "${kinE_path}POSCAR"
+    cp "${inp_path}input.tde" "${kinE_path}input.tde"
+    cp "${inp_path}${lmp_ff}" "${kinE_path}${lmp_ff}"
+  elif [ "${sim_prog}" = "lammps" ]; then
+    cp "${inp_path}read_data.lmp" "${kinE_path}read_data.lmp"
     cp "${inp_path}input.tde" "${kinE_path}input.tde"
     cp "${inp_path}${lmp_ff}" "${kinE_path}${lmp_ff}"
   fi
@@ -193,6 +197,7 @@ while true; do
 
 ########################################
 # !!run VASP calculations OR
+# run LAMMPS-ish calculation OR
 # run LAMMPS calculation
 ########################################
   if [ "${sim_prog}" = "vasp" ]; then
@@ -291,10 +296,55 @@ while true; do
 
 ########################################
 # run VASP calculations OR
+# !!run LAMMPS-ish calculation OR
+# run LAMMPS calculation
+########################################
+  elif [ "${sim_prog}" = "lammpsish" ]; then
+    python ${prog_path}/poscar2lmp.py >> "${out_file}" || exit
+
+########################################
+# submit MD job
+# sbatch run_args.slurm
+########################################
+    if [ ! -f "log.lammps" ]; then
+      srun lmp -in input.tde || mpiexec lmp -in input.tde
+      echo "MD run submitted" >> "${out_file}"
+    else
+      echo "MD run already completed" >> "${out_file}"
+    fi
+########################################
+# holdup to wait for MD job to finish
+# check log file every 10 min
+# sleep until end of log file confirms end of run
+########################################
+    # Script will kill when "Total wall time:" is at the front of the last line in the log.lammps file
+    md_check_num=-1
+  
+    while true; do
+      if [[ -f "log.lammps" && ${md_check_num} = -1 ]]; then
+        md_check_num=$(bc -l <<< "${md_check_num}+1")
+        echo "check ${md_check_num}" >> "${out_file}"
+      elif [[ -f "log.lammps" && ${md_check_num} -gt -1 ]]; then
+        tai=$(tail -1 "log.lammps")
+        if [ "${tai:0:4}" = "STOP" -o "${tai:0:16}" = "Total wall time:" ]; then
+          break
+        fi
+        echo "check ${md_check_num}" >> "${out_file}"
+        md_check_num=$(bc -l <<< "${md_check_num}+1")
+        sleep 5
+      else
+        sleep 2
+      fi
+    done
+  
+    echo "MD run complete" >> "${out_file}"
+
+########################################
+# run VASP calculations OR
+# run LAMMPS-ish calculation OR
 # !!run LAMMPS calculation
 ########################################
   elif [ "${sim_prog}" = "lammps" ]; then
-    python ${prog_path}/poscar2lmp.py >> "${out_file}" || exit
 
 ########################################
 # submit MD job
@@ -341,7 +391,7 @@ while true; do
 ########################################
   if [ "${sim_prog}" = "vasp" ]; then
     Efin=$(grep "TOTEN" "${cgm_path}OUTCAR" | tail -n 1  | grep -Eo '[+-]?[0-9]+([.][0-9]+)?')
-  elif [ "${sim_prog}" = "lammps" ]; then
+  elif [ "${sim_prog}" = "lammpsish" ] || [ "${sim_prog}" = "lammps" ]; then
     Eperf=$(grep "Initial energy" "${kinE_path}log.lammps" | tail -n 1  | grep -Eo '[+-]?[0-9]+([.][0-9]+)?')
     Efin=$(grep "Final energy" "${kinE_path}log.lammps" | tail -n 1  | grep -Eo '[+-]?[0-9]+([.][0-9]+)?')
   fi
