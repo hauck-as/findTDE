@@ -1,10 +1,33 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
 authors:
-- family-names: "Hauck"
-  given-names: "Alexander"
+- family-names: Hauck
+  given-names: Alexander S.
   orcid: "https://orcid.org/0000-0002-6402-2343"
-title: "findTDE"
-version: 1.1.13
+message: If you use this software, please cite our article in Applied Physics Letters.
+preferred-citation:
+  authors:
+  - family-names: Hauck
+    given-names: Alexander S.
+    orcid: "https://orcid.org/0000-0002-6402-2343"
+  - family-names: Jin
+    given-names: Miaomiao
+    orcid: "https://orcid.org/0000-0002-3543-4082"
+  - family-names: Tuttle
+    given-names: Blair R.
+    orcid: "https://orcid.org/0000-0003-1940-3486"
+  date-published: 2024-04-09
+  doi: 10.1063/5.0190371
+  issn: 0003-6951
+  issue: 15
+  journal: Applied Physics Letters
+  publisher:
+    name: American Institute of Physics
+  start: 152107
+  title: "Atomic displacement threshold energies and defect generation in GaN, AlN, and AlGaN: A high-throughput molecular dynamics investigation"
+  type: article
+  url: https://pubs.aip.org/aip/apl/article/124/15/152107/3282227
+  volume: 124
+title: findTDE
+version: 1.2.0
 date-released: 2023-09-27
 url: "https://github.com/hauck-as/findTDE"

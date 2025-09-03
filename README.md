@@ -9,8 +9,10 @@ We recommend creating a virtual environment through Conda first, then installing
 ## Usage
 The find_tde script may be called directly from the command line with several options. The usage may be displayed using the help (-h) option. The convergence mode (-c) determines how subsequent kinetic energy values are chosen for the displacement event, either "standard" (adjust by 5 eV until opposite defect generation is found, then adjust by 1 eV until the TDE is found) or "midpoint" (adjust by 8 eV until opposite defect generation is found, then adjust by half the distance from the current energy to the nearest energy of opposite defect generation). The program selection (-p) chooses whether `VASP` or `LAMMPS` is used for the calculations. If `LAMMPS` is used, the force field file may be chosen (-f).
 
+Two options exist to use `LAMMPS` as the calculation program: `lammps` and `lammpsish`. `lammps` uses exclusively `LAMMPS` for all input files and simulations, while `lammpsish` uses the POSCAR/POTCAR files from `VASP` to convert to `LAMMPS` input files and performs just the calculations in `VASP`.
+
 ```bash
-find_tde [-h] [-c <standard|midpoint>] [-p <vasp|lammps>] [-f <lmp_ff.type>]
+find_tde [-h] [-c <standard|midpoint>] [-p <vasp|lammpsish|lammps>] [-f <lmp_ff.type>]
 ```
 
 The script is currently written to execute via `Slurm` workload manager. This can be adjusted temporarily to execute the appropriate program. 

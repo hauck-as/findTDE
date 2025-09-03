@@ -21,6 +21,7 @@ dependencies = [
     "matplotlib",
     "plotly",
     "pymatgen",
+    "ase>=3.23.0",
     "fortranformat",
     "nbformat",
     "kaleido"
