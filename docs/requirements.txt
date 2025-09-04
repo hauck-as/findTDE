@@ -1,9 +1,9 @@
 # required dependencies:
 matplotlib
 plotly
-numpy == 1.26.4
+numpy >= 1.24.4
 pymatgen
-ase>=3.23.0
+ase >= 3.23.0
 pandas == 2.1.4
 fortranformat
 nbformat
