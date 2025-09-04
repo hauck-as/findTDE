@@ -133,7 +133,7 @@ if __name__ == '__main__':
     base_path = Path.cwd()
     bin_path, inp_path, perfect_path = base_path / 'bin', base_path / 'inp', base_path / 'perfect'
     if sim_prog == 'vasp':
-        tde_run_path = base_path / lat_dir_pseudo + '_' + atom_type + str(atom_num)
+        tde_run_path = base_path / (lat_dir_pseudo + '_' + atom_type + str(atom_num))
         # set atomic weights from POTCAR
         mass_lines = subprocess.run(['grep', 'POMASS', inp_path / 'POTCAR'], capture_output = True, text = True)
         mass_lines_list = mass_lines.stdout.split('\n ')
@@ -141,7 +141,7 @@ if __name__ == '__main__':
         for i in range(len(mass_lines_list)):
             atomic_masses.append(float(re.search(r'\d+.\d+', mass_lines_list[i]).group()))
     elif sim_prog == 'lammpsish' or sim_prog == 'lammps':
-        tde_run_path = base_path / lat_dir_pseudo + '_' + atom_type + str(atom_num) + '_lmp'
+        tde_run_path = base_path / (lat_dir_pseudo + '_' + atom_type + str(atom_num) + '_lmp')
         # set atomic weights from LAMMPS input file
         lmp_inp_f = LammpsInputFile.from_file(inp_path / 'input.tde')
         mass_list, group_list = lmp_inp_f.get_args('mass'), lmp_inp_f.get_args('group')
@@ -154,7 +154,7 @@ if __name__ == '__main__':
                     if atom_id_list[1] == id_mass_list[0]:
                         atom_mass_dict.update({atom_id_list[0]: float(id_mass_list[1])})
         atomic_masses = list(atom_mass_dict.values())
-    tde_run_outfile_path = tde_run_path / lat_dir_pseudo + '_' + atom_type + str(atom_num) + '_out.txt'
+    tde_run_outfile_path = tde_run_path / (lat_dir_pseudo + '_' + atom_type + str(atom_num) + '_out.txt')
 
     # read lattice directions and kinetic energies from text files
     # finds lattice direction from pseudo passed from bash
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     kinE = np.array([float(kinE_line)])
     print('KE:', kinE, 'eV')
 
-    tde_kinE_path = tde_run_path / kinE_line.strip('\n') + 'eV'
+    tde_kinE_path = tde_run_path / (kinE_line.strip('\n') + 'eV')
 
     if sim_prog == 'vasp' or sim_prog == 'lammpsish':
         pos_file = tde_kinE_path / 'POSCAR'
