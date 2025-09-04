@@ -7,4 +7,4 @@ findTDE comprises a set of scripts to facilitate easy, high-throughput calculati
 __author__ = "Alexander Hauck"
 __copyright__ = "Copyright (C) 2023 Alexander Hauck"
 __license__ = "MIT License"
-__version__ = "1.2.2"
+__version__ = "1.2.3"

@@ -195,6 +195,7 @@ if __name__ == '__main__':
         # read in LAMMPS data file using ASE
         lmp_data = read_lammps_data(data_file, atom_style='atomic', units='metal', sort_by_id=True)
         lat_vecs = lmp_data.get_cell()
+        data_spec_list = list(set(lmp_data.get_chemical_symbols()))
 
     if lat_dir_pseudo[-1] == 'L':
         lat_dir = np.array(lat_dir_list[5:], dtype=int)
@@ -215,7 +216,9 @@ if __name__ == '__main__':
                 vel_vecs = lat_vel_calc(atomic_masses[i], kinE, vel_dir)
         vel_to_POSCAR(vel_vecs[0], atom_type, atom_num, pos_file)
     elif sim_prog == 'lammps':
-        vel_vecs = lat_vel_calc(atomic_masses[i], kinE, vel_dir)
+        for i in range(len(data_spec_list)):
+            if atom_type.lower() == data_spec_list[i].lower():
+                vel_vecs = lat_vel_calc(atomic_masses[i], kinE, vel_dir)
         vel_to_LAMMPS(vel_vecs[0], atom_type, atom_num, data_file)
     print('velocity vectors:', vel_vecs)
 
