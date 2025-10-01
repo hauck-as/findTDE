@@ -9,8 +9,6 @@
 
 ## multi_tde.py
 * move examples to an example doc
-* maybe change from screen? dunno
-* change from running to submitting jobs probably
 * change how directions are defined
 
 ## tde_analysis.py
