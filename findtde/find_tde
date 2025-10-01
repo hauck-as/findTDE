@@ -92,8 +92,6 @@ latt_dir_pseudo=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {
 atom_type=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $2}')
 atom_num=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $3}')
 
-echo "${latt_dir_pseudo}, ${atom_type}, ${atom_num}"
-
 # if direction pseudo is specified, ensure latti_dir_pseudo matches
 if [ "${direction_pseudo}" != "nL" ]; then
   latt_dir_pseudo=${direction_pseudo}
@@ -101,10 +99,6 @@ if [ "${direction_pseudo}" != "nL" ]; then
   atom_type=$(grep "${direction_pseudo}" ${latt_dirs_file} | tail -1 | awk 'BEGIN { FS = "[,; \t]+" } {print $2}')
   atom_num=$(grep "${direction_pseudo}" ${latt_dirs_file} | tail -1 | awk 'BEGIN { FS = "[,; \t]+" } {print $3}')
 fi
-
-echo "${latt_dir_pseudo}, ${atom_type}, ${atom_num}"
-
-exit
 
 # define & create directory for direction
 if [ "${sim_prog}" = "vasp" ]; then
