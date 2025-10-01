@@ -18,14 +18,15 @@ Help()
    echo
 }
 
-usage() { echo "Usage: $0 [-h] [-c <standard|midpoint>] [-p <vasp|lammpsish|lammps>] [-f <lmp_ff.type>]" 1>&2; exit 1; }
+usage() { echo "Usage: $0 [-h] [-c <standard|midpoint>] [-p <vasp|lammpsish|lammps>] [-d <nL|nS>] [-f <lmp_ff.type>]" 1>&2; exit 1; }
 
 conv_mode="standard"
 sim_prog="vasp"
+direction_pseudo="1L"
 lmp_ff="AlGaN.sw"
 
 # get the options
-while getopts ":h:c:p:f:" o; do
+while getopts ":h:c:p:d:f:" o; do
   case "${o}" in
     h) # display Help
       Help
@@ -37,6 +38,9 @@ while getopts ":h:c:p:f:" o; do
     p) # Enter simulation program
       sim_prog=${OPTARG}
       ((sim_prog == "vasp" || sim_prog == "lammpsish" || sim_prog == "lammps")) || usage
+      ;;
+    d) # Enter direction pseudonym corresponding to latt_dirs_to_calc.csv file
+      direction_pseudo=${OPTARG}
       ;;
     f) # Enter force field for LAMMPS
       lmp_ff=${OPTARG}
@@ -88,6 +92,20 @@ latt_dir_pseudo=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {
 atom_type=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $2}')
 atom_num=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $3}')
 
+echo "${latt_dir_pseudo}, ${atom_type}, ${atom_num}"
+
+# if direction pseudo is specified, ensure latti_dir_pseudo matches
+if [ "${direction_pseudo}" != "nL" ]; then
+  latt_dir_pseudo=${direction_pseudo}
+  grep -q "${direction_pseudo}" ${latt_dirs_file} || { echo "Error: direction pseudonym not found in latt_dirs_to_calc.csv"; exit 1; }
+  atom_type=$(grep "${direction_pseudo}" ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $2}')
+  atom_num=$(grep "${direction_pseudo}" ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $3}')
+fi
+
+echo "${latt_dir_pseudo}, ${atom_type}, ${atom_num}"
+
+exit
+
 # define & create directory for direction
 if [ "${sim_prog}" = "vasp" ]; then
   tde_run_path="${base_path}/${latt_dir_pseudo}_${atom_type}${atom_num}/"
@@ -132,6 +150,10 @@ echo "Lattice Direction Pseudo, Atom Type, Atom Number, KE, Final Energy (eV), D
 # initial KE for first run
 KE_i=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $4}')
 KE_cutoff=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $5}')
+if [ "${direction_pseudo}" != "nL" ]; then
+  KE_i=$(grep "${direction_pseudo}" ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $4}')
+  KE_cutoff=$(grep "${direction_pseudo}" ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $5}')
+fi
 KE_cur=${KE_i}
 kinE_path="${tde_run_path}${KE_i}eV"
 
