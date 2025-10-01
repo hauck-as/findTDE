@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Python module used to submit several find_tde jobs at once."""
 import os
+from pathlib import Path
+import importlib.resources as ilr
 import re
 import subprocess
 import math as m
 import numpy as np
+from numpy.typing import ArrayLike
+from pymatgen.util.typing import PathLike
 
-base_path = os.getcwd()
-bin_path, inp_path, perfect_path = os.path.relpath('bin', base_path), os.path.relpath('inp', base_path), os.path.relpath('perfect', base_path)
+base_path = Path.cwd()
+bin_path, inp_path, perfect_path = base_path / 'bin', base_path / 'inp', base_path / 'perfect'
 
 
 def write_find_tde_calcs(direction, atom_type, atom_number, ke_i=25, ke_cut=40, mode='L', directions_filepath=os.path.relpath('latt_dirs_to_calc.csv', os.getcwd())):
@@ -29,13 +33,16 @@ def write_find_tde_calcs(direction, atom_type, atom_number, ke_i=25, ke_cut=40, 
         n, n_all = 0, []
         ld_f_lines = ld_f.readlines()
         for line in ld_f_lines:
-            line = line.strip('\n')
-            if line[0] != '#':
-                n_all.append(re.split(r'[;,\s]\s*', line)[0][:-1])
-                dir_n = re.split(r'[;,\s]\s*', line)[5:]
-                if np.all(np.array(dir_n, dtype=float) == direction.astype(float)):
-                    print('Direction matches previous pseudo')
-                    n = re.split(r'[;,\s]\s*', line)[0][:-1]
+            if len(line) < 2:
+                ld_f_lines.remove(line)
+            else:
+                line = line.strip('\n')
+                if line[0] != '#':
+                    n_all.append(re.split(r'[;,\s]\s*', line)[0][:-1])
+                    dir_n = re.split(r'[;,\s]\s*', line)[5:]
+                    if np.all(np.array(dir_n, dtype=float) == direction.astype(float)):
+                        print('Direction matches previous pseudo')
+                        n = re.split(r'[;,\s]\s*', line)[0][:-1]
         n_prev_max = int(np.amax(np.array((n_all), dtype=int)))
         if n != 0:
             ld_f.write(', '.join(['\n'+str(n)+str(mode), str(atom_type), str(atom_number), str(ke_i), str(ke_cut), str(direction[0]), str(direction[1]), str(direction[2])]))
@@ -54,7 +61,90 @@ def write_find_tde_calcs(direction, atom_type, atom_number, ke_i=25, ke_cut=40, 
     return
 
 
-def find_multiple_tde(directions, atom_type, atom_number, ke_i=25, ke_cut=40, mode='L', conv='standard', prog='vasp', lmp_ff='AlGaN.sw', screen_num=0):
+def find_multiple_tde(
+    directions: ArrayLike,
+    atom_type: str,
+    atom_number: int,
+    ke_i: int = 25,
+    ke_cut: int = 40,
+    mode: str = 'L',
+    conv: str = 'standard',
+    prog: str = 'vasp',
+    lmp_ff: str = 'AlGaN.sw',
+    submit_cmd: str = 'sbatch',
+    submit_filepath: PathLike = inp_path / 'run_ftde.slurm'
+) -> None:
+        """
+        Function used to write and submit multiple instances for findTDE.
+
+        Args
+        ---------
+            directions (ArrayLike):
+                2D array of lattice or spherical directions to be used to calculate velocity vectors.
+            atom_type (str):
+                Symbol of atom to be used for displacements. Used for specifying atom in structure file and mass used for velocity.
+            atom_number (int):
+                Index number for which atom of the specified type in the structure file to be used for displacement simulations.
+            ke_i (int):
+                Initial kinetic energy (eV) to be used for findTDE. Defaults to 25.
+            ke_cut (int):
+                Cutoff kinetic energy (eV) to stop findTDE if the TDE is found to be above this value. Defaults to 40.
+            mode (str):
+                Define directions as lattice (L) or spherical (S) directions. Defaults to L (lattice directions).
+            conv (str):
+                Define the convergence method for findTDE. Options are standard (increase by 5 until defect found, decrease by 1 to
+                find TDE) and midpoint (increase by 8 until defect found, increase/decrease by bisection to find TDE). Defaults to
+                standard.
+            prog (str):
+                Define which program to be used for the displacement calculations. Options are vasp (VASP only), lammpsish (VASP files,
+                LAMMPS calculations), and lammps (LAMMPS only). Defaults to vasp.
+            lmp_ff (str):
+                If prog is lammpsish or lammps, define which interatomic potential is used. File should be in the inp directory.
+                Defaults to AlGaN.sw (specified so it does not need to be defined for vasp program option).
+            submit_cmd (str):
+                Define submission command used for workload manager (e.g., Slurm, PBE) to be used to run findTDE jobs. Defaults to
+                sbatch (Slurm submission command).
+            submit_filepath (PathLike):
+                Define submission script to be used to run findTDE jobs. Defaults to inp/run_ftde.slurm.
+
+        Returns
+        ---------
+            Nothing.
+        """
+        ftde_path = f"{ilr.files('findtde')}/"
+        if prog.lower()[0] == 'v':
+            execution_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()}\n'
+        elif prog.lower()[0] == 'l':
+            execution_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()} -f {lmp_ff}\n'
+
+        # read in submission script and replace with execution line as specified
+        sm_f = open(submit_filepath, 'r')
+        submit_lines_og = sm_f.readlines()
+        sm_f.close()
+
+        submit_lines_new = submit_lines_og.copy()
+        for j in range(len(submit_lines_new)):
+            if 'find_tde' in submit_lines_new[j]:
+                submit_lines_new[j] = execution_line
+        
+        sm_f = open(submit_filepath, 'w')
+        sm_f.writelines(submit_lines_new)
+        sm_f.close()
+
+        for i in range(directions.shape[0]):
+            write_find_tde_calcs(directions[i, :], atom_type, atom_number, ke_i=ke_i, ke_cut=ke_cut, mode=mode)
+            subprocess.run([submit_cmd, submit_filepath], capture_output=True, text=True)
+            subprocess.run(['sleep', '60s'])
+
+        # return submission script to original
+        sm_f = open(submit_filepath, 'w')
+        sm_f.writelines(submit_lines_og)
+        sm_f.close()
+
+        return None
+
+
+def find_multiple_tde_OLD(directions, atom_type, atom_number, ke_i=25, ke_cut=40, mode='L', conv='standard', prog='vasp', lmp_ff='AlGaN.sw', screen_num=0):
     """
     Function used to write and submit multiple instances for find_tde.
     """
@@ -208,118 +298,120 @@ def read_pseudo_atom_info(pseudo_atom_filename):
     return pa_info_arr
 
 
-# generate directions for calculations
-"""l_directions = np.array([
-    [-1, 4, 1],
-    [-1, 7, 3],
-    [-1, 8, 4],
-    [-2, -1, 0],
-    [-4, 11, 0],
-    [-4, 4, 3],
-    [0, 0, -1],
-    [0, 0, 1],
-    [0, 1, -5],
-    [0, 1, 0],
-    [0, 2, 1],
-    [0, 4, 1],
-    [0, 5, 2],
-    [1, -1, 1],
-    [1, 1, 1],
-    [1, 2, -5],
-    [1, 2, 0],
-    [1, 7, 0],
-    [2, -2, 1],
-    [2, 0, -5],
-    [2, 1, 0],
-    [2, 4, -5],
-    [4, -3, 0],
-    [4, -5, 4],
-    [4, 1, 3],
-    [4, 3, 1],
-    [5, 2, 1],
-    [5, 3, 0],
-    [7, 0, 3],
-    [7, 4, 5],
-    [8, 4, 3],
-    [1, 1, 0],
-    [-1, -1, 0],
-    [-1, 1, 0]
-])
+if __name__ == '__main__':
+    # generate directions for calculations
+    """l_directions = np.array([
+        [-1, 4, 1],
+        [-1, 7, 3],
+        [-1, 8, 4],
+        [-2, -1, 0],
+        [-4, 11, 0],
+        [-4, 4, 3],
+        [0, 0, -1],
+        [0, 0, 1],
+        [0, 1, -5],
+        [0, 1, 0],
+        [0, 2, 1],
+        [0, 4, 1],
+        [0, 5, 2],
+        [1, -1, 1],
+        [1, 1, 1],
+        [1, 2, -5],
+        [1, 2, 0],
+        [1, 7, 0],
+        [2, -2, 1],
+        [2, 0, -5],
+        [2, 1, 0],
+        [2, 4, -5],
+        [4, -3, 0],
+        [4, -5, 4],
+        [4, 1, 3],
+        [4, 3, 1],
+        [5, 2, 1],
+        [5, 3, 0],
+        [7, 0, 3],
+        [7, 4, 5],
+        [8, 4, 3],
+        [1, 1, 0],
+        [-1, -1, 0],
+        [-1, 1, 0]
+    ])"""
 
-s_directions = np.array([
-    # [1., 30., 105.],
-    # [1., 90., 60.]
-    [1., 90., 97.5]
-])"""
+    s_directions = np.array([
+        [1., 30., 105.],
+        [1., 90., 60.],
+        [1., 90., 97.5]
+    ])
 
-"""
-ga_s_gan_dirs = np.array([
-    [1., 45., 112.5],
-    [1., 30., 105.],
-    [1., 90., 60.]
-])
+    """
+    ga_s_gan_dirs = np.array([
+        [1., 45., 112.5],
+        [1., 30., 105.],
+        [1., 90., 60.]
+    ])
 
-ga_l_gan_dirs = np.array([
-    [5, 2, 1],
-    [-4, 4, 3],
-    [-2, -1, 0]
-])
+    ga_l_gan_dirs = np.array([
+        [5, 2, 1],
+        [-4, 4, 3],
+        [-2, -1, 0]
+    ])
 
-n_s_gan_dirs = np.array([
-    [1., 90., 112.5],
-    [1., 90., 97.5]
-])
+    n_s_gan_dirs = np.array([
+        [1., 90., 112.5],
+        [1., 90., 97.5]
+    ])
 
-n_l_gan_dirs = np.array([
-    [-1, 1, 0]
-])
+    n_l_gan_dirs = np.array([
+        [-1, 1, 0]
+    ])
 
-al_s_aln_dirs = np.array([
-    [1., 82.5, 52.5],
-    [1., 82.5, 60.],
-    [1., 82.5, 67.5],
-    [1., 82.5, 45.]
-])
+    al_s_aln_dirs = np.array([
+        [1., 82.5, 52.5],
+        [1., 82.5, 60.],
+        [1., 82.5, 67.5],
+        [1., 82.5, 45.]
+    ])
 
-n_s_aln_dirs = np.array([
-    [1., 90., 45.],
-    # [1., 90., 112.5]
-])
-"""
+    n_s_aln_dirs = np.array([
+        [1., 90., 45.],
+        # [1., 90., 112.5]
+    ])
+    """
 
-# write_sph_dirs(scale_C3z_symmetry(lat2sph(all_tde_data[1], gan_lattice_vecs)), filepath=os.path.relpath('sph_directions.csv', base_path))
-# sph_directions = np.genfromtxt(os.path.relpath('sph_directions.csv', base_path), delimiter=',', comments='#', skip_header=4)
-sph_directions_ext_s1 = np.genfromtxt(os.path.relpath('sph_directions_ext_set1.csv', base_path), delimiter=',', comments='#', skip_header=4)
-# sph_directions_ext_s2 = np.genfromtxt(os.path.relpath('sph_directions_ext_set2.csv', base_path), delimiter=',', comments='#', skip_header=4)
-# sph_directions_ext_s3 = np.genfromtxt(os.path.relpath('sph_directions_ext_set3.csv', base_path), delimiter=',', comments='#', skip_header=4)
-## aln_redo_info = read_pseudo_atom_info(os.path.join(base_path, 'aln_lmp_errs_run_info.txt'))
-## for i in range(aln_redo_info.shape[0]):
-##     find_multiple_tde(np.array([aln_redo_info[i]['direction']]), aln_redo_info[i]['atom_type'], aln_redo_info[i]['atom_num'], ke_i=10, ke_cut=100, mode=aln_redo_info[i]['dir_mode'], conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=30)
+    # write_sph_dirs(scale_C3z_symmetry(lat2sph(all_tde_data[1], gan_lattice_vecs)), filepath=os.path.relpath('sph_directions.csv', base_path))
+    # sph_directions = np.genfromtxt(os.path.relpath('sph_directions.csv', base_path), delimiter=',', comments='#', skip_header=4)
+    # sph_directions_ext_s1 = np.genfromtxt(os.path.relpath('sph_directions_ext_set1.csv', base_path), delimiter=',', comments='#', skip_header=4)
+    # sph_directions_ext_s2 = np.genfromtxt(os.path.relpath('sph_directions_ext_set2.csv', base_path), delimiter=',', comments='#', skip_header=4)
+    # sph_directions_ext_s3 = np.genfromtxt(os.path.relpath('sph_directions_ext_set3.csv', base_path), delimiter=',', comments='#', skip_header=4)
+    ## aln_redo_info = read_pseudo_atom_info(os.path.join(base_path, 'aln_lmp_errs_run_info.txt'))
+    ## for i in range(aln_redo_info.shape[0]):
+    ##     find_multiple_tde(np.array([aln_redo_info[i]['direction']]), aln_redo_info[i]['atom_type'], aln_redo_info[i]['atom_num'], ke_i=10, ke_cut=100, mode=aln_redo_info[i]['dir_mode'], conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=30)
 
-# write directions and run find_tde
-# ga 34, n 35
-# find_multiple_tde(s_directions, 'ga', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp')
+    # write directions and run find_tde
+    # ga 34, n 35
+    # find_multiple_tde(s_directions, 'ga', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', submit_filepath=(inp_path / 'submit.sm'))
+    find_multiple_tde(s_directions, 'ga', 34, ke_i=12, ke_cut=60, mode='S', conv='midpoint', prog='lammps', lmp_ff='ngaal.pb', submit_filepath=(inp_path / 'submit.sm'))
 
-## find_multiple_tde(sph_directions, 'zn', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=100)
-## find_multiple_tde(sph_directions, 'o', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=500)
-find_multiple_tde(sph_directions_ext_s1, 'zn', 34, ke_i=10, ke_cut=200, mode='S', conv='midpoint', prog='lammps', lmp_ff='ZnO.tersoff', screen_num=1010)
+    ## find_multiple_tde(sph_directions, 'zn', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=100)
+    ## find_multiple_tde(sph_directions, 'o', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=500)
+    # find_multiple_tde(sph_directions_ext_s1, 'zn', 34, ke_i=10, ke_cut=200, mode='S', conv='midpoint', prog='lammps', lmp_ff='ZnO.tersoff', screen_num=1010)
 
-# calculate lowest energy directions from GaN/AlN calcs, both Ga/Al & N knockouts, in VASP
-# find_multiple_tde(ga_s_gan_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4410)
-# find_multiple_tde(ga_l_gan_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='L', conv='midpoint', prog='vasp', screen_num=4420)
-# find_multiple_tde(n_s_gan_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4430)
-# find_multiple_tde(n_l_gan_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='L', conv='midpoint', prog='vasp', screen_num=4440)
-# find_multiple_tde(al_s_aln_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4450)
-# find_multiple_tde(n_s_aln_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4460)
+    # calculate lowest energy directions from GaN/AlN calcs, both Ga/Al & N knockouts, in VASP
+    # find_multiple_tde(ga_s_gan_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4410)
+    # find_multiple_tde(ga_l_gan_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='L', conv='midpoint', prog='vasp', screen_num=4420)
+    # find_multiple_tde(n_s_gan_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4430)
+    # find_multiple_tde(n_l_gan_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='L', conv='midpoint', prog='vasp', screen_num=4440)
+    # find_multiple_tde(al_s_aln_dirs, 'al', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4450)
+    # find_multiple_tde(n_s_aln_dirs, 'n', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=4460)
 
-# calculate extended spherical direction mesh in LAMMPS
-# find_multiple_tde(sph_directions_ext_s3, 'ga', 34, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=1100)
-# find_multiple_tde(sph_directions_ext_s3, 'n', 35, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=1400)
+    # calculate extended spherical direction mesh in LAMMPS
+    # find_multiple_tde(sph_directions_ext_s3, 'ga', 34, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=1100)
+    # find_multiple_tde(sph_directions_ext_s3, 'n', 35, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=1400)
 
-# calculate lowest energy directions from GaN/AlN calcs, both Ga/Al & N knockouts, in LAMMPS
-# find_multiple_tde(ga_s_gan_dirs, 'al', 34, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7010)
-# find_multiple_tde(ga_l_gan_dirs, 'al', 34, ke_i=10, ke_cut=100, mode='L', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7020)
-# find_multiple_tde(n_s_gan_dirs, 'n', 35, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7030)
-# find_multiple_tde(n_l_gan_dirs, 'n', 35, ke_i=10, ke_cut=100, mode='L', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7040)
-# find_multiple_tde(al_s_aln_dirs, 'al', 34, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7050)
-# find_multiple_tde(n_s_aln_dirs, 'n', 35, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7060)
+    # calculate lowest energy directions from GaN/AlN calcs, both Ga/Al & N knockouts, in LAMMPS
+    # find_multiple_tde(ga_s_gan_dirs, 'al', 34, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7010)
+    # find_multiple_tde(ga_l_gan_dirs, 'al', 34, ke_i=10, ke_cut=100, mode='L', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7020)
+    # find_multiple_tde(n_s_gan_dirs, 'n', 35, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7030)
+    # find_multiple_tde(n_l_gan_dirs, 'n', 35, ke_i=10, ke_cut=100, mode='L', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7040)
+    # find_multiple_tde(al_s_aln_dirs, 'al', 34, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7050)
+    # find_multiple_tde(n_s_aln_dirs, 'n', 35, ke_i=10, ke_cut=100, mode='S', conv='midpoint', prog='lammps', lmp_ff='AlGaN.sw', screen_num=7060)
