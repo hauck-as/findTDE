@@ -26,6 +26,8 @@ def write_find_tde_calcs(direction, atom_type, atom_number, ke_i=25, ke_cut=40, 
     '# n+1S    atom_type    atom_number    ke_i    ke_cut    r    p    t\n' + \
     '########################################'
     
+    lat_dir_pseudo = ''
+
     # if file does exist, append directions to it starting from previous number
     if os.path.isfile(directions_filepath):
         ld_f = open(directions_filepath, 'r+')
@@ -43,22 +45,26 @@ def write_find_tde_calcs(direction, atom_type, atom_number, ke_i=25, ke_cut=40, 
                     if np.all(np.array(dir_n, dtype=float) == direction.astype(float)):
                         print('Direction matches previous pseudo')
                         n = re.split(r'[;,\s]\s*', line)[0][:-1]
+        
         n_prev_max = int(np.amax(np.array((n_all), dtype=int)))
         if n != 0:
-            ld_f.write(', '.join(['\n'+str(n)+str(mode), str(atom_type), str(atom_number), str(ke_i), str(ke_cut), str(direction[0]), str(direction[1]), str(direction[2])]))
+            lat_dir_pseudo = f'{n}{mode}'
         else:
-            ld_f.write(', '.join(['\n'+str(1+n_prev_max)+str(mode), str(atom_type), str(atom_number), str(ke_i), str(ke_cut), str(direction[0]), str(direction[1]), str(direction[2])]))
+            lat_dir_pseudo = f'{1+n_prev_max}{mode}'
+        
+        ld_f.write(', '.join(['\n'+str(lat_dir_pseudo), str(atom_type), str(atom_number), str(ke_i), str(ke_cut), str(direction[0]), str(direction[1]), str(direction[2])]))
         ld_f.close()
     
     # if file does not exist, create file with header and add direction to it
     else:
+        lat_dir_pseudo = f'1{mode}'
         ld_f = open(directions_filepath, 'w+')
         print('Creating new file')
         ld_f.write(lat_dir_list_header_text)
-        ld_f.write(', '.join(['\n'+str(1)+str(mode), str(atom_type), str(atom_number), str(ke_i), str(ke_cut), str(direction[0]), str(direction[1]), str(direction[2])]))
+        ld_f.write(', '.join(['\n'+str(lat_dir_pseudo), str(atom_type), str(atom_number), str(ke_i), str(ke_cut), str(direction[0]), str(direction[1]), str(direction[2])]))
         ld_f.close()
     
-    return
+    return lat_dir_pseudo
 
 
 def find_multiple_tde(
@@ -113,28 +119,29 @@ def find_multiple_tde(
         """
         ftde_path = f"{ilr.files('findtde')}/"
         if prog.lower()[0] == 'v':
-            execution_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()}\n'
+            execution_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()}'
         elif prog.lower()[0] == 'l':
-            execution_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()} -f {lmp_ff}\n'
+            execution_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()} -f {lmp_ff}'
 
         # read in submission script and replace with execution line as specified
         sm_f = open(submit_filepath, 'r')
         submit_lines_og = sm_f.readlines()
         sm_f.close()
-
         submit_lines_new = submit_lines_og.copy()
-        for j in range(len(submit_lines_new)):
-            if 'find_tde' in submit_lines_new[j]:
-                submit_lines_new[j] = execution_line
-        
-        sm_f = open(submit_filepath, 'w')
-        sm_f.writelines(submit_lines_new)
-        sm_f.close()
 
         for i in range(directions.shape[0]):
-            write_find_tde_calcs(directions[i, :], atom_type, atom_number, ke_i=ke_i, ke_cut=ke_cut, mode=mode)
+            lat_dir_pseudo = write_find_tde_calcs(directions[i, :], atom_type, atom_number, ke_i=ke_i, ke_cut=ke_cut, mode=mode)
+            execution_line_i = ' '.join([execution_line, f'-d {lat_dir_pseudo}\n'])
+
+            for j in range(len(submit_lines_new)):
+                if 'find_tde' in submit_lines_new[j]:
+                    submit_lines_new[j] = execution_line_i
+            
+            sm_f = open(submit_filepath, 'w')
+            sm_f.writelines(submit_lines_new)
+            sm_f.close()
+
             subprocess.run([submit_cmd, submit_filepath], capture_output=True, text=True)
-            subprocess.run(['sleep', '60s'])
 
         # return submission script to original
         sm_f = open(submit_filepath, 'w')
