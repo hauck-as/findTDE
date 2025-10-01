@@ -98,8 +98,8 @@ echo "${latt_dir_pseudo}, ${atom_type}, ${atom_num}"
 if [ "${direction_pseudo}" != "nL" ]; then
   latt_dir_pseudo=${direction_pseudo}
   grep -q "${direction_pseudo}" ${latt_dirs_file} || { echo "Error: direction pseudonym not found in latt_dirs_to_calc.csv"; exit 1; }
-  atom_type=$(grep "${direction_pseudo}" ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $2}')
-  atom_num=$(grep "${direction_pseudo}" ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $3}')
+  atom_type=$(grep "${direction_pseudo}" ${latt_dirs_file} | tail -1 | awk 'BEGIN { FS = "[,; \t]+" } {print $2}')
+  atom_num=$(grep "${direction_pseudo}" ${latt_dirs_file} | tail -1 | awk 'BEGIN { FS = "[,; \t]+" } {print $3}')
 fi
 
 echo "${latt_dir_pseudo}, ${atom_type}, ${atom_num}"
@@ -151,8 +151,8 @@ echo "Lattice Direction Pseudo, Atom Type, Atom Number, KE, Final Energy (eV), D
 KE_i=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $4}')
 KE_cutoff=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $5}')
 if [ "${direction_pseudo}" != "nL" ]; then
-  KE_i=$(grep "${direction_pseudo}" ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $4}')
-  KE_cutoff=$(grep "${direction_pseudo}" ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $5}')
+  KE_i=$(grep "${direction_pseudo}" ${latt_dirs_file} | tail -1 | awk 'BEGIN { FS = "[,; \t]+" } {print $4}')
+  KE_cutoff=$(grep "${direction_pseudo}" ${latt_dirs_file} | tail -1 | awk 'BEGIN { FS = "[,; \t]+" } {print $5}')
 fi
 KE_cur=${KE_i}
 kinE_path="${tde_run_path}${KE_i}eV"
