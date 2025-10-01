@@ -344,11 +344,12 @@ if __name__ == '__main__':
         [-1, 1, 0]
     ])"""
 
+    """
     s_directions = np.array([
         [1., 30., 105.],
         [1., 90., 60.],
         [1., 90., 97.5]
-    ])
+    ])"""
 
     """
     ga_s_gan_dirs = np.array([
@@ -397,7 +398,7 @@ if __name__ == '__main__':
     # write directions and run find_tde
     # ga 34, n 35
     # find_multiple_tde(s_directions, 'ga', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', submit_filepath=(inp_path / 'submit.sm'))
-    find_multiple_tde(s_directions, 'ga', 34, ke_i=12, ke_cut=60, mode='S', conv='midpoint', prog='lammps', lmp_ff='ngaal.pb', submit_filepath=(inp_path / 'submit.sm'))
+    # find_multiple_tde(s_directions, 'ga', 34, ke_i=12, ke_cut=60, mode='S', conv='midpoint', prog='lammps', lmp_ff='ngaal.pb', submit_filepath=(inp_path / 'submit.sm'))
 
     ## find_multiple_tde(sph_directions, 'zn', 34, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=100)
     ## find_multiple_tde(sph_directions, 'o', 35, ke_i=25, ke_cut=45, mode='S', conv='midpoint', prog='vasp', screen_num=500)
