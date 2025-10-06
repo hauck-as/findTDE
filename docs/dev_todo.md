@@ -4,8 +4,8 @@
 * also use option to specify either lammps or vasp execution line
 * add variable energy change between runs
 * add VASP standard/gamma point versions
-* add JUST LAMMPS version
 * add verbose/debug option
+* edit convergence such that kinetic energy is never negative
 
 ## multi_tde.py
 * move examples to an example doc
