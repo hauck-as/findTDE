@@ -50,14 +50,14 @@ def lat_vel_calc(M, E, vdir):
     The direction and velocity are 1D numpy arrays.
     """
     M *= 931.49432*1e6    # 1/u * MeV/c^2 * eV/MeV
-    
+
     v_mag = np.sqrt(np.divide(2*E, M))
     v_mag *= 299792458*1e10*1e-15    # m/s * Angstrom/m * s/fs
-    
+
     v = np.zeros((v_mag.shape[0], vdir.shape[0]))
     
     dir_unit_vec = unit_vector(vdir)
-    
+
     for i in range(v_mag.shape[0]):
         v[i, :] = np.multiply(v_mag[i], dir_unit_vec)
     return v
@@ -195,12 +195,13 @@ if __name__ == '__main__':
         # read in LAMMPS data file using ASE
         lmp_data = read_lammps_data(data_file, atom_style='atomic', units='metal', sort_by_id=True)
         lat_vecs = lmp_data.get_cell()
-        data_spec_list = list(set(lmp_data.get_chemical_symbols()))
+        data_spec_list = list(dict.fromkeys(lmp_data.get_chemical_symbols()))
 
     if lat_dir_pseudo[-1] == 'L':
         lat_dir = np.array(lat_dir_list[5:], dtype=int)
         vel_dir = lat_dir@lat_vecs
         print('lattice direction:', str(lat_dir))
+        print('velocity direction:', str(vel_dir))
     elif lat_dir_pseudo[-1] == 'S':
         lat_dir = np.array(lat_dir_list[5:], dtype=float)
         # rho can be any value since magnitude is scaled, choose 1 for simplicity
@@ -208,6 +209,7 @@ if __name__ == '__main__':
         cart_coords = np.array(sph2cart(float(lat_dir_list[5:][1]), float(lat_dir_list[5:][2]), r=1.))
         vel_dir = cart_coords
         print('spherical direction:', str(lat_dir))
+        print('velocity direction:', str(vel_dir))
 
     # calculate velocity vector and write to file
     if sim_prog == 'vasp' or sim_prog == 'lammpsish':
@@ -217,6 +219,7 @@ if __name__ == '__main__':
         vel_to_POSCAR(vel_vecs[0], atom_type, atom_num, pos_file)
     elif sim_prog == 'lammps':
         for i in range(len(data_spec_list)):
+            print(i, data_spec_list[i].lower())
             if atom_type.lower() == data_spec_list[i].lower():
                 vel_vecs = lat_vel_calc(atomic_masses[i], kinE, vel_dir)
         vel_to_LAMMPS(vel_vecs[0], atom_type, atom_num, data_file)
