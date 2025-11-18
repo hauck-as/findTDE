@@ -80,75 +80,75 @@ def find_multiple_tde(
     submit_cmd: str = 'sbatch',
     submit_filepath: PathLike = inp_path / 'run_ftde.slurm'
 ) -> None:
-        """
-        Function used to write and submit multiple instances for findTDE.
+    """
+    Function used to write and submit multiple instances for findTDE.
 
-        Args
-        ---------
-            directions (ArrayLike):
-                2D array of lattice or spherical directions to be used to calculate velocity vectors.
-            atom_type (str):
-                Symbol of atom to be used for displacements. Used for specifying atom in structure file and mass used for velocity.
-            atom_number (int):
-                Index number for which atom of the specified type in the structure file to be used for displacement simulations.
-            ke_i (int):
-                Initial kinetic energy (eV) to be used for findTDE. Defaults to 25.
-            ke_cut (int):
-                Cutoff kinetic energy (eV) to stop findTDE if the TDE is found to be above this value. Defaults to 40.
-            mode (str):
-                Define directions as lattice (L) or spherical (S) directions. Defaults to L (lattice directions).
-            conv (str):
-                Define the convergence method for findTDE. Options are standard (increase by 5 until defect found, decrease by 1 to
-                find TDE) and midpoint (increase by 8 until defect found, increase/decrease by bisection to find TDE). Defaults to
-                standard.
-            prog (str):
-                Define which program to be used for the displacement calculations. Options are vasp (VASP only), lammpsish (VASP files,
-                LAMMPS calculations), and lammps (LAMMPS only). Defaults to vasp.
-            lmp_ff (str):
-                If prog is lammpsish or lammps, define which interatomic potential is used. File should be in the inp directory.
-                Defaults to AlGaN.sw (specified so it does not need to be defined for vasp program option).
-            submit_cmd (str):
-                Define submission command used for workload manager (e.g., Slurm, PBE) to be used to run findTDE jobs. Defaults to
-                sbatch (Slurm submission command).
-            submit_filepath (PathLike):
-                Define submission script to be used to run findTDE jobs. Defaults to inp/run_ftde.slurm.
+    Args
+    ---------
+        directions (ArrayLike):
+            2D array of lattice or spherical directions to be used to calculate velocity vectors.
+        atom_type (str):
+            Symbol of atom to be used for displacements. Used for specifying atom in structure file and mass used for velocity.
+        atom_number (int):
+            Index number for which atom of the specified type in the structure file to be used for displacement simulations.
+        ke_i (int):
+            Initial kinetic energy (eV) to be used for findTDE. Defaults to 25.
+        ke_cut (int):
+            Cutoff kinetic energy (eV) to stop findTDE if the TDE is found to be above this value. Defaults to 40.
+        mode (str):
+            Define directions as lattice (L) or spherical (S) directions. Defaults to L (lattice directions).
+        conv (str):
+            Define the convergence method for findTDE. Options are standard (increase by 5 until defect found, decrease by 1 to
+            find TDE) and midpoint (increase by 8 until defect found, increase/decrease by bisection to find TDE). Defaults to
+            standard.
+        prog (str):
+            Define which program to be used for the displacement calculations. Options are vasp (VASP only), lammpsish (VASP files,
+            LAMMPS calculations), and lammps (LAMMPS only). Defaults to vasp.
+        lmp_ff (str):
+            If prog is lammpsish or lammps, define which interatomic potential is used. File should be in the inp directory.
+            Defaults to AlGaN.sw (specified so it does not need to be defined for vasp program option).
+        submit_cmd (str):
+            Define submission command used for workload manager (e.g., Slurm, PBE) to be used to run findTDE jobs. Defaults to
+            sbatch (Slurm submission command).
+        submit_filepath (PathLike):
+            Define submission script to be used to run findTDE jobs. Defaults to inp/run_ftde.slurm.
 
-        Returns
-        ---------
-            Nothing.
-        """
-        ftde_path = f"{ilr.files('findtde')}/"
-        if prog.lower()[0] == 'v':
-            execution_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()}'
-        elif prog.lower()[0] == 'l':
-            execution_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()} -f {lmp_ff}'
+    Returns
+    ---------
+        Nothing.
+    """
+    ftde_path = f"{ilr.files('findtde')}/"
+    if prog.lower()[0] == 'v':
+        execution_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()}'
+    elif prog.lower()[0] == 'l':
+        execution_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()} -f {lmp_ff}'
 
-        # read in submission script and replace with execution line as specified
-        sm_f = open(submit_filepath, 'r')
-        submit_lines_og = sm_f.readlines()
-        sm_f.close()
-        submit_lines_new = submit_lines_og.copy()
+    # read in submission script and replace with execution line as specified
+    sm_f = open(submit_filepath, 'r')
+    submit_lines_og = sm_f.readlines()
+    sm_f.close()
+    submit_lines_new = submit_lines_og.copy()
 
-        for i in range(directions.shape[0]):
-            lat_dir_pseudo = write_find_tde_calcs(directions[i, :], atom_type, atom_number, ke_i=ke_i, ke_cut=ke_cut, mode=mode)
-            execution_line_i = ' '.join([execution_line, f'-d {lat_dir_pseudo}\n'])
+    for i in range(directions.shape[0]):
+        lat_dir_pseudo = write_find_tde_calcs(directions[i, :], atom_type, atom_number, ke_i=ke_i, ke_cut=ke_cut, mode=mode)
+        execution_line_i = ' '.join([execution_line, f'-d {lat_dir_pseudo}\n'])
 
-            for j in range(len(submit_lines_new)):
-                if 'find_tde' in submit_lines_new[j]:
-                    submit_lines_new[j] = execution_line_i
-            
-            sm_f = open(submit_filepath, 'w')
-            sm_f.writelines(submit_lines_new)
-            sm_f.close()
-
-            subprocess.run([submit_cmd, submit_filepath], capture_output=True, text=True)
-
-        # return submission script to original
+        for j in range(len(submit_lines_new)):
+            if 'find_tde' in submit_lines_new[j]:
+                submit_lines_new[j] = execution_line_i
+        
         sm_f = open(submit_filepath, 'w')
-        sm_f.writelines(submit_lines_og)
+        sm_f.writelines(submit_lines_new)
         sm_f.close()
 
-        return None
+        subprocess.run([submit_cmd, submit_filepath], capture_output=True, text=True)
+
+    # return submission script to original
+    sm_f = open(submit_filepath, 'w')
+    sm_f.writelines(submit_lines_og)
+    sm_f.close()
+
+    return None
 
 
 def find_multiple_tde_OLD(directions, atom_type, atom_number, ke_i=25, ke_cut=40, mode='L', conv='standard', prog='vasp', lmp_ff='AlGaN.sw', screen_num=0):
