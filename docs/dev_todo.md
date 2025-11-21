@@ -9,12 +9,10 @@
 
 ## multi_tde.py
 * move examples to an example doc
-* change how directions are defined
 
 ## tde_analysis.py
 * remove built in requirement for ga 34/etc., require input for specific things
 * 1 atom displacement at a time
-* maintain plotting defaults, optional user input
 * examples with lines for GaN displacements to copy-paste for auto analysis
 
 ## defect_analysis.py
@@ -24,6 +22,3 @@
 
 ## cli.py
 * build out functionalities for single, multiple TDE determinations
-
-## plotting.py
-* set defaults based on autodetection, add choice to set options

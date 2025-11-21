@@ -289,7 +289,7 @@ def find_tde_sph_analysis(find_tde_dE, pseudo_keys, lattice_vecs, e_tol=1.0, ke_
     return find_tde_sph_dict
 
 
-def generate_tde_sph_arr(tde_data_df, pseudo_keys, lattice_vecs, e_tol=1.0, ke_cut=45, polar_offset=60):
+def generate_tde_sph_arr(tde_data_df, pseudo_keys, lattice_vecs, e_tol=1.0, ke_cut=45, symmetries=None, polar_offset=0.):
     """
     Function to reorganize dataframe into a Nx3 array with spherical coordinates.
     """
@@ -300,9 +300,18 @@ def generate_tde_sph_arr(tde_data_df, pseudo_keys, lattice_vecs, e_tol=1.0, ke_c
         key = list(find_tde_pseudos)[k]
         try:
             rpt = np.array([[1.0, find_tde_sph_dict[key]['phi'], find_tde_sph_dict[key]['theta']]])
-            rpt_scaled = scale_C6z_symmetry(scale_C3z_symmetry(rpt))    # scale_C3z_symmetry(rpt)
+
+            # scale angles into a single sector based on crystal symmetries
+            if symmetries.lower() == 'c3z':
+                rpt_scaled = scale_C3z_symmetry(rpt)
+            elif symmetries.lower() == 'c6z':
+                rpt_scaled = scale_C6z_symmetry(scale_C3z_symmetry(rpt))
+            else:
+                rpt_scaled = rpt
+
+            # round values for analysis purposes
+            # offset polar angle to adjust difference between lattice vector a and cartesian x-axis
             find_tde_sph_arr[k, :] = np.array([
-                # 60 DEG ADDED TO POLAR ANGLE SO THAT 0 deg ALIGNS TO THE RIGHT IN VISUALIZATION
                 (round(rpt_scaled[0, 1], 2)+polar_offset),
                 round(rpt_scaled[0, 2], 2),
                 round(find_tde_sph_dict[key]['TDE'], 2)
