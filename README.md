@@ -11,7 +11,8 @@ The find_tde script may be called directly from the command line with several op
 
 ```bash
 $ find_tde -h
-usage: find_tde [-h] [-c <standard|midpoint>] [-p <vasp|lammpsish|lammps>] [-d <nL|nS>] [-f <lmp_ff.type>] [-x <execution>]
+usage: find_tde [-h] [-c <standard|midpoint>] [-p <vasp|lammpsish|lammps>] [-d <nL|nS>]
+         [-f <lmp_ff.type>] [-x <execution>]
 
 options:
   -h
