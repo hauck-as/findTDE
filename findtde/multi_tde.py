@@ -77,6 +77,7 @@ def find_multiple_tde(
     conv: str = 'standard',
     prog: str = 'vasp',
     lmp_ff: str = 'AlGaN.sw',
+    exec_line: str | None = None,
     submit_cmd: str = 'sbatch',
     submit_filepath: PathLike = inp_path / 'run_ftde.slurm'
 ) -> None:
@@ -107,6 +108,10 @@ def find_multiple_tde(
         lmp_ff (str):
             If prog is lammpsish or lammps, define which interatomic potential is used. File should be in the inp directory.
             Defaults to AlGaN.sw (specified so it does not need to be defined for vasp program option).
+        exec_line (str or None):
+            Define the execution line for the specified program (i.e., vasp_std, vasp_gam, lmp, lmp_mpi, etc.). Defaults to None,
+            meaning the defaults are chosen in the find_tde Bash script: 'srun vasp_std > vasp.out || mpirun vasp_std > vasp.out'
+            for vasp or 'srun lmp -in input.tde || mpiexec lmp -in input.tde' for lammpsish/lammps.
         submit_cmd (str):
             Define submission command used for workload manager (e.g., Slurm, PBE) to be used to run findTDE jobs. Defaults to
             sbatch (Slurm submission command).
@@ -119,9 +124,12 @@ def find_multiple_tde(
     """
     ftde_path = f"{ilr.files('findtde')}/"
     if prog.lower()[0] == 'v':
-        execution_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()}'
+        ftde_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()}'
     elif prog.lower()[0] == 'l':
-        execution_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()} -f {lmp_ff}'
+        ftde_line = f'{ftde_path}find_tde -c {conv} -p {prog.lower()} -f {lmp_ff}'
+
+    if exec_line is not None:
+        ftde_line = ' '.join([ftde_line, f'-x "{exec_line}"'])
 
     # read in submission script and replace with execution line as specified
     sm_f = open(submit_filepath, 'r')
@@ -131,11 +139,11 @@ def find_multiple_tde(
 
     for i in range(directions.shape[0]):
         lat_dir_pseudo = write_find_tde_calcs(directions[i, :], atom_type, atom_number, ke_i=ke_i, ke_cut=ke_cut, mode=mode)
-        execution_line_i = ' '.join([execution_line, f'-d {lat_dir_pseudo}\n'])
+        ftde_line_i = ' '.join([ftde_line, f'-d {lat_dir_pseudo}\n'])
 
         for j in range(len(submit_lines_new)):
             if 'find_tde' in submit_lines_new[j]:
-                submit_lines_new[j] = execution_line_i
+                submit_lines_new[j] = ftde_line_i
         
         sm_f = open(submit_filepath, 'w')
         sm_f.writelines(submit_lines_new)

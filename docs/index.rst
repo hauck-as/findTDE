@@ -13,15 +13,30 @@ We recommend creating a virtual environment through Conda first, then installing
 -----
 Usage
 -----
-The find_tde script may be called directly from the command line with several options. The usage may be displayed using the help (-h) option. The convergence mode (-c) determines how subsequent kinetic energy values are chosen for the displacement event, either "standard" (adjust by 5 eV until opposite defect generation is found, then adjust by 1 eV until the TDE is found) or "midpoint" (adjust by 8 eV until opposite defect generation is found, then adjust by half the distance from the current energy to the nearest energy of opposite defect generation). The program selection (-p) chooses whether ``VASP`` or ``LAMMPS`` is used for the calculations. If ``LAMMPS`` is used, the force field file may be chosen (-f).
-
-Two options exist to use ``LAMMPS`` as the calculation program: ``lammps`` and ``lammpsish``. ``lammps`` uses exclusively ``LAMMPS`` for all input files and simulations, while ``lammpsish`` uses the POSCAR/POTCAR files from ``VASP`` to convert to ``LAMMPS`` input files and performs just the calculations in ``VASP``.
+The find_tde script may be called directly from the command line with several options. The usage may be displayed using the help (-h) option.
 
 .. code-block:: bash
 
-    find_tde [-h] [-c <standard|midpoint>] [-p <vasp|lammpsish|lammps>] [-f <lmp_ff.type>]
+    find_tde [-h] [-c <standard|midpoint>] [-p <vasp|lammpsish|lammps>] [-d <nL|nS>] [-f <lmp_ff.type>] [-x <execution>]
 
-The script is currently written to execute ``VASP``/``LAMMPS`` via either ``srun`` (used by the ``Slurm`` workload manager) or ``mpiexec``. This can be adjusted temporarily in the main script to execute the appropriate program.
+    $ find_tde -h
+    usage: find_tde [-h] [-c <standard|midpoint>] [-p <vasp|lammpsish|lammps>] [-d <nL|nS>] [-f <lmp_ff.type>] [-x <execution>]
+
+    options:
+      -h
+      -c <standard|midpoint>        Convergence mode, determines how subsequent kinetic energy values are chosen for the displacement event.
+                                    "standard" adjusts the previous KE value by 5 eV until opposite defect generation behavior is found (defect formed -> defect not formed, or vice versa), then KE is adjusted by 1 eV until the TDE is found.
+                                    "midpoint" adjusts the previous KE value by 8 eV until opposite defect generation behavior is found, then KE is adjusted by a bisection method until the TDE is found.
+      -p <vasp|lammpsish|lammps>    Program used for displacement event simulations. Dictates how and which input files are created.
+                                    "vasp" selects the ab initio program VASP and only relies on these associated files. Requires POSCAR, POTCAR, KPOINTS, INCAR_md, and INCAR_cgm files in the "inp" directory. A converged OUTCAR of a pristine supercell calculation matching the structure and energetics-related INCAR settings must exist in the "perfect" directory.
+                                    "lammpsish" performs setup using VASP files, but uses LAMMPS to perform simulations. Requires POSCAR, POTCAR, input.tde, and lmp_ff.type files in the "inp" directory.
+                                    "lammps" selects the classical molecular dynamics program LAMMPS. Requires read_data.lmp, input.tde, and lmp_ff.type files in the "inp" directory.
+      -d <nL|nS>                    Specify the calculation direction pseudonym instead of using the last line in the latt_dirs_to_calc.csv file. Formatted as either "nL" or "nS", where "n" is an integer corresponding to the n-th unique direction calculated, formatted as either a lattice ("L") or spherical ("S") direction.
+      -f <lmp_ff.type>              Specifies the name of the forcefield/interatomic potential used for LAMMPS calculations. Can be any filename+extension (e.g., GaN.sw, ngaal.pb). Assumed to exist in the "inp" directory.
+      -x <execution>                Dictates the execution line used for the chosen program. Option should be in quotes to prevent word splitting or other issues.
+                                    Defaults to "srun vasp_std > vasp.out || mpirun vasp_std > vasp.out" for VASP and "srun lmp -in input.tde || mpiexec lmp -in input.tde" for LAMMPS if not specified.
+
+The script may be executed directly, executed via a shell script, or executed by submitting a batch script via a workload manager like ``Slurm`` or ``PBS``. By changing the program execution line (-x option), find_tde can be run in serial and ``VASP`` or ``LAMMPS`` may be run in parallel.
 
 The script relies on a directory structure. Only the base directory (e.g., "project," can be named anything), main input file ("latt_dirs_to_calc.csv"), inputs directory ("inp"), and perfect supercell directory ("perfect") are required to be made and named as described. ``findTDE`` should be executed in the "project" directory. Each "displacement" directory, associated "energy" directories, and relevant .csv/.txt files are created by the program.
 

@@ -9,24 +9,27 @@ Help()
    # Display Help
    echo "Bash script to find TDE value for an atom using VASP AIMD/CGM or LAMMPS MD."
    echo
-   echo "Syntax: find_tde [-c|p|f|h]"
+   echo "Syntax: find_tde [-c|p|f|x|h]"
    echo "options:"
    echo "c     KE convergence mode: standard or midpoint"
    echo "p     Simulation program: vasp, lammpsish, or lammps"
    echo "f     LAMMPS force field: choose file"
+   echo "x     Execution line: specify code execution for chosen program"
    echo "h     Print this Help."
    echo
 }
 
-usage() { echo "Usage: $0 [-h] [-c <standard|midpoint>] [-p <vasp|lammpsish|lammps>] [-d <nL|nS>] [-f <lmp_ff.type>]" 1>&2; exit 1; }
+usage() { echo "Usage: $0 [-h] [-c <standard|midpoint>] [-p <vasp|lammpsish|lammps>] [-d <nL|nS>] [-f <lmp_ff.type>] [-x <execution>]" 1>&2; exit 1; }
 
+# set defaults for execution options
 conv_mode="standard"
 sim_prog="vasp"
 direction_pseudo="1L"
-lmp_ff="AlGaN.sw"
+lmp_ff=""
+exec_line="exit"
 
 # get the options
-while getopts ":h:c:p:d:f:" o; do
+while getopts ":h:c:p:d:f:x:" o; do
   case "${o}" in
     h) # display Help
       Help
@@ -45,6 +48,9 @@ while getopts ":h:c:p:d:f:" o; do
     f) # Enter force field for LAMMPS
       lmp_ff=${OPTARG}
       ;;
+    x) # Enter execution line for chosen program
+      exec_line=${OPTARG}
+      ;;
     \?) # Invalid option
       echo "Error: Invalid option"
       usage
@@ -62,6 +68,20 @@ base_path="${PWD}"
 bin_path="${base_path}/bin/"
 inp_path="${base_path}/inp/"
 perfect_path="${base_path}/perfect/"
+
+########################################
+# if execution line is not specified,
+# set default based on program
+########################################
+if [ "${exec_line}" = "exit" ]; then
+  if [ "${sim_prog}" = "vasp" ]; then
+    exec_line="srun vasp_std > vasp.out || mpirun vasp_std > vasp.out"
+  elif [ "${sim_prog}" = "lammpsish" ]; then
+    exec_line="srun lmp -in input.tde || mpiexec lmp -in input.tde"
+  elif [ "${sim_prog}" = "lammps" ]; then
+    exec_line="srun lmp -in input.tde || mpiexec lmp -in input.tde"
+  fi
+fi
 
 ########################################
 # get perfect crystal energy
@@ -119,6 +139,7 @@ Atom....................: ${atom_type}
 Atom Number.............: ${atom_num}
 Convergence Mode........: ${conv_mode}
 Simulation Program......: ${sim_prog}
+Execution Line..........: ${exec_line}
 ===========================
 EOF
 echo "Lattice Direction Pseudo: ${latt_dir_pseudo}"
@@ -126,6 +147,7 @@ echo "Atom....................: ${atom_type}"
 echo "Atom Number.............: ${atom_num}"
 echo "Convergence Mode........: ${conv_mode}"
 echo "Simulation Program......: ${sim_prog}"
+echo "Execution Line..........: ${exec_line}"
 echo "==========================="
 
 # file showing delimited output data
@@ -223,7 +245,7 @@ while true; do
 # sbatch run_args.slurm
 ########################################
     if [ ! -f "OUTCAR" ]; then
-      srun vasp_std > vasp.out || mpirun vasp_std > vasp.out
+      eval "$exec_line" || exit
       echo "AIMD run submitted" >> "${out_file}"
     else
       echo "AIMD run already completed" >> "${out_file}"
@@ -275,7 +297,7 @@ while true; do
 ########################################
     cd ${cgm_path} || exit
     if [ ! -f "OUTCAR" ]; then
-      srun vasp_std > vasp.out || mpirun vasp_std > vasp.out
+      eval "$exec_line" || exit
       echo "CGM run submitted" >> "${out_file}"
     else
       echo "CGM run already completed" >> "${out_file}"
@@ -323,7 +345,7 @@ while true; do
 # sbatch run_args.slurm
 ########################################
     if [ ! -f "log.lammps" ]; then
-      srun lmp -in input.tde || mpiexec lmp -in input.tde
+      eval "$exec_line" || exit
       echo "MD run submitted" >> "${out_file}"
     else
       echo "MD run already completed" >> "${out_file}"
@@ -367,7 +389,7 @@ while true; do
 # sbatch run_args.slurm
 ########################################
     if [ ! -f "log.lammps" ]; then
-      srun lmp -in input.tde || mpiexec lmp -in input.tde
+      eval "$exec_line" || exit
       echo "MD run submitted" >> "${out_file}"
     else
       echo "MD run already completed" >> "${out_file}"
