@@ -345,7 +345,7 @@ while true; do
 # sbatch run_args.slurm
 ########################################
     if [ ! -f "log.lammps" ]; then
-      eval "$exec_line" || exit
+      eval "$exec_line" >> "${out_file}" || exit
       echo "MD run submitted" >> "${out_file}"
     else
       echo "MD run already completed" >> "${out_file}"
