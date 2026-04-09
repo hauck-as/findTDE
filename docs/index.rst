@@ -130,3 +130,4 @@ The ``findTDE`` code was developed by Alexander Hauck, Dr. Mia Jin, and Dr. Blai
     Installation
     Tutorials
     findTDE API <findtde>
+    Development
