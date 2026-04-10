@@ -289,7 +289,7 @@ def find_tde_sph_analysis(find_tde_dE, pseudo_keys, lattice_vecs, e_tol=1.0, ke_
     return find_tde_sph_dict
 
 
-def generate_tde_sph_arr(tde_data_df, pseudo_keys, lattice_vecs, e_tol=1.0, ke_cut=45, symmetries=None, polar_offset=0.):
+def generate_tde_sph_arr(tde_data_df, pseudo_keys, lattice_vecs, e_tol=1.0, ke_cut=45, symmetries='', polar_offset=0.):
     """
     Function to reorganize dataframe into a Nx3 array with spherical coordinates.
     """
