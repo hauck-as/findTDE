@@ -15,7 +15,7 @@ copyright = '2023, Alexander S. Hauck'
 author = 'Alexander S. Hauck'
 
 release = '1.4'
-version = '1.4.0'
+version = '1.4.1'
 
 # -- General configuration
 
