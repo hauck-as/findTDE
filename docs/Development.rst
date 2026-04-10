@@ -17,7 +17,6 @@
 -----------------
 vasp_vel_write.py
 -----------------
-* fix write_lammps_data function in vel_to_LAMMPS to maintain specorder
 * change name to just vel_write?
 
 ------------

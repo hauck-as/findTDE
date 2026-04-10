@@ -102,6 +102,7 @@ def vel_to_LAMMPS(vel_vec, atom_type, atom_no, filepath):
     
     # list of the element for each atom in the structure
     atom_type_list = lmp_data.get_chemical_symbols()
+    specorder_list = list(dict.fromkeys(atom_type_list))
     # total number of atoms in the structure
     total_ions = len(lmp_data)
     
@@ -121,7 +122,15 @@ def vel_to_LAMMPS(vel_vec, atom_type, atom_no, filepath):
     # set velocities in POSCAR to velocity array
     lmp_data.set_velocities(vel_arr)
     
-    write_lammps_data(filepath, lmp_data, masses=True, velocities=True, units='metal', atom_style='atomic')
+    write_lammps_data(
+            filepath,
+            lmp_data,
+            specorder=specorder_list,
+            masses=True,
+            velocities=True,
+            units='metal',
+            atom_style='atomic'
+    )
     
     return lmp_data
 
