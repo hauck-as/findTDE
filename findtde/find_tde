@@ -13,23 +13,28 @@ Help()
    echo "options:"
    echo "c     KE convergence mode: standard or midpoint"
    echo "p     Simulation program: vasp, lammpsish, or lammps"
+   echo "d     Direction pseudo: nL or nS"
+   echo "a     Knockout atom type: choose element symbol"
+   echo "n     Atom number: choose atom index relative to atom type"
    echo "f     LAMMPS force field: choose file"
    echo "x     Execution line: specify code execution for chosen program"
    echo "h     Print this Help."
    echo
 }
 
-usage() { echo "Usage: $0 [-h] [-c <standard|midpoint>] [-p <vasp|lammpsish|lammps>] [-d <nL|nS>] [-f <lmp_ff.type>] [-x <execution>]" 1>&2; exit 1; }
+usage() { echo "Usage: $0 [-h] [-c <standard|midpoint>] [-p <vasp|lammpsish|lammps>] [-d <nL|nS>] [-a <atom>] [-n <n>] [-f <lmp_ff.type>] [-x <execution>]" 1>&2; exit 1; }
 
 # set defaults for execution options
 conv_mode="standard"
 sim_prog="vasp"
 direction_pseudo="1L"
+atom_type=""
+atom_num=""
 lmp_ff=""
 exec_line="exit"
 
 # get the options
-while getopts ":h:c:p:d:f:x:" o; do
+while getopts ":h:c:p:d:a:n:f:x:" o; do
   case "${o}" in
     h) # display Help
       Help
@@ -44,6 +49,12 @@ while getopts ":h:c:p:d:f:x:" o; do
       ;;
     d) # Enter direction pseudonym corresponding to latt_dirs_to_calc.csv file
       direction_pseudo=${OPTARG}
+      ;;
+    a) # Enter atom type for knockout atom
+      atom_type=${OPTARG}
+      ;;
+    n) # Enter atom number for knockout atom
+      atom_num=${OPTARG}
       ;;
     f) # Enter force field for LAMMPS
       lmp_ff=${OPTARG}
@@ -107,17 +118,27 @@ defect_flag=0
 # latice directions text file path
 latt_dirs_file="${base_path}/latt_dirs_to_calc.csv"
 
-# set lattice direction as last? direction in text file
+# set lattice direction as last direction in csv file
 latt_dir_pseudo=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $1}')
-atom_type=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $2}')
-atom_num=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $3}')
 
 # if direction pseudo is specified, ensure latti_dir_pseudo matches
 if [ "${direction_pseudo}" != "nL" ]; then
   latt_dir_pseudo=${direction_pseudo}
   grep -q "${direction_pseudo}" ${latt_dirs_file} || { echo "Error: direction pseudonym not found in latt_dirs_to_calc.csv"; exit 1; }
-  atom_type=$(grep "${direction_pseudo}" ${latt_dirs_file} | tail -1 | awk 'BEGIN { FS = "[,; \t]+" } {print $2}')
-  atom_num=$(grep "${direction_pseudo}" ${latt_dirs_file} | tail -1 | awk 'BEGIN { FS = "[,; \t]+" } {print $3}')
+  if [ "${atom_type}" == "" ]; then
+    atom_type=$(grep "${direction_pseudo}" ${latt_dirs_file} | tail -1 | awk 'BEGIN { FS = "[,; \t]+" } {print $2}')
+  fi
+  if [ "${atom_num}" == "" ]; then
+    atom_num=$(grep "${direction_pseudo}" ${latt_dirs_file} | tail -1 | awk 'BEGIN { FS = "[,; \t]+" } {print $3}')
+  fi
+fi
+
+# default to info from last line
+if [ "${atom_type}" == "" ]; then
+  atom_type=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $2}')
+fi
+if [ "${atom_num}" == "" ]; then
+  atom_num=$(tail -n 1 ${latt_dirs_file} | awk 'BEGIN { FS = "[,; \t]+" } {print $3}')
 fi
 
 # define & create directory for direction

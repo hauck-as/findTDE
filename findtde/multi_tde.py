@@ -139,7 +139,7 @@ def find_multiple_tde(
 
     for i in range(directions.shape[0]):
         lat_dir_pseudo = write_find_tde_calcs(directions[i, :], atom_type, atom_number, ke_i=ke_i, ke_cut=ke_cut, mode=mode)
-        ftde_line_i = ' '.join([ftde_line, f'-d {lat_dir_pseudo}\n'])
+        ftde_line_i = ' '.join([ftde_line, f'-d {lat_dir_pseudo} -a {atom_type} -n {atom_number}\n'])
 
         for j in range(len(submit_lines_new)):
             if 'find_tde' in submit_lines_new[j]:
