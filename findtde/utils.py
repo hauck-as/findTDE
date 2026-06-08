@@ -1,8 +1,21 @@
 #!/usr/bin/env python3
 """Python module of utility functions for findTDE calculations."""
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional, List, Optional, Tuple, Dict, Any
+from collections.abc import Callable
+
 from math import gcd
 from fractions import Fraction
+import random as rand
 import numpy as np
+
+import pymatgen.core as mg
+from pymatgen.core.structure import Structure
+from pymatgen.io.vasp import Poscar
+from pymatgen.io.ase import AseAtomsAdaptor
+from pymatgen.util.typing import PathLike
+from ase import Atoms
+from ase.io.lammpsdata import read_lammps_data, write_lammps_data
 
 
 # math functions
@@ -119,6 +132,163 @@ def sph2lat(rpt, ai):
         uvw[i, :] /= n
     
     return uvw
+
+
+def binary_to_random_ternary(
+    struc_path: PathLike,
+    new_struc_path: PathLike,
+    to_replace: str = 'Ga',
+    replace_with: str = 'Al',
+    x_comp: float = 0.5,
+    struc_format: str = 'LAMMPS',
+    specific_idx: List[int] | None = None,
+    rand_seed: int | None = None,
+    sort_key: Callable | None = lambda x: x.species.elements[0].symbol.lower()
+) -> Tuple[Structure | Atoms, List[int]]:
+    """
+    Creates a ternary structure by randomly replacing a percentage of a
+    given atom type in a binary structure with a third atom type.
+
+    Args
+    ---------
+        struc_path (PathLike):
+            Path to the original binary structure file.
+        new_struc_path (PathLike):
+            Path at which the new structure file will be created.
+        to_replace (str):
+            String of an atom symbol in the original structure of
+            the type to be replaced. Defaults to 'Ga'.
+        replace_with (str):
+            String of an atom symbol that will replace atoms in
+            the original structure. Defaults to 'Al'.
+        x_comp (float):
+            Float between 0 and 1 corresponding to the percentage
+            of 'replace_with' introduced into the structure. 0 is
+            no 'replace_with' in the structure, and 1 replaces all
+            of the 'to_replace' atoms with 'replace_with'. Defaults
+            to 0.5 (half the atoms are replaced).
+        struc_format (str):
+            String corresponding to the format of the structure file
+            used. Currently supports either LAMMPS data files (specify
+            using string starting with 'l' or 'd') or VASP POSCARs
+            (specify using string starting with 'v' or 'p'). Defaults
+            to 'LAMMPS'.
+        specific_idx (list(int) or None):
+            List of integers corresponding to specific atom indices
+            to be replaced. Defaults to None (random indices).
+        rand_seed (int or None):
+            Integer to specify the seed for generating a list of
+            random indices. Defaults to None (chosen by random).
+        sort_key (Callable | None):
+            Key for the sorting function used by Python lists/pymatgen.
+            Defaults to `lambda x: x.species.elements[0].symbol.lower()`
+            (sorts by atomic symbols alphabetically).
+
+    Returns
+    ---------
+        Tuple of the structure information (either a pymatgen Structure
+        or ASE Atoms object) and list of indices replaced.
+    """
+    if rand_seed is not None:
+        rand.seed(rand_seed)
+    
+    if struc_format.lower()[0] == 'l' or struc_format.lower()[0] == 'd':
+        # LAMMPS or Data file
+        lmp_data = read_lammps_data(struc_path, atom_style='atomic', units='metal', sort_by_id=True)
+
+        # gather info from structure
+        symbols = lmp_data.get_chemical_symbols()
+        masses = lmp_data.get_masses()
+        atomicnum = lmp_data.get_atomic_numbers()
+    elif struc_format.lower()[0] == 'v' or struc_format.lower()[0] == 'p':
+        # VASP or POSCAR
+        vasp_data = Poscar.from_file(struc_path)
+        data_struc = vasp_data.structure
+
+        # gather info from structure
+        elements = data_struc.species
+        symbols = [i.symbol for i in elements]
+        masses = [i.atomic_mass for i in elements]
+        atomicnum = [i.Z for i in elements]
+    else:
+        raise ValueError('Please use a valid structure format (LAMMPS/Data or VASP/POSCAR).')
+
+    other_symbol = [i for i in list(set(symbols)) if i != to_replace][0]
+    
+    try:
+        first_idx_to_replace = symbols.index(to_replace)
+    except ValueError:
+        raise ValueError(f'No {to_replace} found')
+
+    num_to_replace = symbols.count(to_replace)
+
+    idx_to_replace = []
+    if specific_idx is not None:
+        idx_to_replace = specific_idx
+        for idx in idx_to_replace:
+            if symbols[idx] != to_replace:
+                raise ValueError(f'Index {idx} is not a {to_replace} atom (found {symbols[idx]})')
+
+    else:
+        num_x = int(num_to_replace * x_comp)
+        replaced_idx = [i for i, sym in enumerate(symbols) if sym == to_replace]
+        idx_to_replace = rand.sample(replaced_idx, num_x)
+
+    idx_to_replace.sort()
+
+    if struc_format.lower()[0] == 'l' or struc_format.lower()[0] == 'd':
+        for idx in idx_to_replace:
+            symbols[idx] = replace_with
+            masses[idx] = mg.Element(replace_with).atomic_mass
+            atomicnum[idx] = mg.Element(replace_with).Z
+            
+        # replace info in structure
+        lmp_data.set_chemical_symbols(symbols)
+        lmp_data.set_masses(masses)
+        lmp_data.set_atomic_numbers(atomicnum)
+
+        for j, val in enumerate(idx_to_replace):
+            lmp_data.append(lmp_data[val-j])
+            lmp_data.pop(val-j)
+
+        new_symbols = lmp_data.get_chemical_symbols()
+    elif struc_format.lower()[0] == 'v' or struc_format.lower()[0] == 'p':
+        # replace info in structure
+        for idx in idx_to_replace:
+            data_struc.replace(idx, replace_with)
+
+        data_struc.sort(key=sort_key)
+        
+        new_elements = data_struc.species
+        new_symbols = [i.symbol for i in new_elements]
+    else:
+        raise ValueError('Please use a valid structure format (LAMMPS/Data or VASP/POSCAR).')
+
+    print(f'Replaced {len(idx_to_replace)} {to_replace} atoms with {replace_with}')
+    print(f'Total atoms: {len(new_symbols)}')
+    print(f'{to_replace}: {new_symbols.count(to_replace)}')
+    print(f'{replace_with}: {new_symbols.count(replace_with)}')
+    print(f'{other_symbol}:  {new_symbols.count(other_symbol)}')
+
+    if struc_format.lower()[0] == 'l' or struc_format.lower()[0] == 'd':
+        new_struc = lmp_data
+        write_lammps_data(
+            new_struc_path,
+            new_struc,
+            specorder=[to_replace, other_symbol, replace_with],
+            masses=True,
+            velocities=True,
+            units='metal',
+            atom_style='atomic'
+        )
+    elif struc_format.lower()[0] == 'v' or struc_format.lower()[0] == 'p':
+        new_struc = Poscar(data_struc)
+        new_struc.write_file(new_struc_path)
+    else:
+        raise ValueError('Please use a valid structure format (LAMMPS/Data or VASP/POSCAR).')
+    
+
+    return new_struc, idx_to_replace
 
 
 def scale_C3z_symmetry(rpt):

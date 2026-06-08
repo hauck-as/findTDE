@@ -2,11 +2,17 @@
 """Python module of file management functions for findTDE calculations."""
 import os
 import glob
-from pathlib import Path, PurePosixPath
+from pathlib import Path
+from typing import List
 import importlib.resources as ilr
 
 import numpy as np
 import pandas as pd
+
+from pymatgen.util.typing import PathLike
+from ase import Atoms
+from ase.io.lammpsdata import read_lammps_data, write_lammps_data
+from ase.io.lammpsrun import read_lammps_dump_text
 
 base_path = Path.cwd()
 bin_path, inp_path, perfect_path = base_path / 'bin', base_path / 'inp', base_path / 'perfect'
@@ -88,6 +94,50 @@ def write_sph_dirs(rpt, filepath=os.path.join(base_path, 'sph_directions.csv')):
         sph_f.write(sph_line+'\n')
     sph_f.close()
     return
+
+
+def convert_lmp_dump_to_data(
+    dump_filepath: PathLike = Path('dump.final'),
+    data_filepath: PathLike = Path('dump_data.lmp'),
+    units: str = 'metal',
+    specorder: List[str] = ['Ga', 'N', 'Al']
+) -> Atoms:
+    """
+    Creates a ternary structure by randomly replacing a percentage of a
+    given atom type in a binary structure with a third atom type.
+
+    Args
+    ---------
+        dump_filepath (PathLike):
+            Path to the original LAMMPS dump file. Defaults to
+            Path('dump.final').
+        data_filepath (PathLike):
+            Path at which the new LAMMPS data file will be created.
+            Defaults to Path('dump_data.lmp').
+        units (str):
+            String corresponding to units used in the dump file and
+            to be used in the LAMMPS data file. Defaults to 'metal'.
+        specorder (list(str)):
+            List of strings corresponding to the order atoms should
+            be sorted in the created data file. Defaults to ['Ga',
+            'N', 'Al'].
+
+    Returns
+    ---------
+        ASE Atoms object of the converted dump file.
+    """
+    dump_file = open(dump_filepath, 'r')
+    data_lmp = read_lammps_dump_text(dump_file, units=units)
+    write_lammps_data(
+        data_filepath,
+        data_lmp,
+        specorder=specorder,
+        masses=True,
+        velocities=False,
+        units=units,
+        atom_style='atomic'
+    )
+    return data_lmp
 
 
 # function to gather data from find_tde runs
