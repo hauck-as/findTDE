@@ -66,14 +66,18 @@ hover_tde = '<br><b>Polar</b>: %{x:.2f}'+\
 pl_paper_theme = pio.templates['simple_white']
 pl_paper_theme.layout.xaxis.ticks = 'inside'
 pl_paper_theme.layout.yaxis.ticks = 'inside'
+pl_paper_theme.layout.xaxis.minor.ticks = 'inside'
+pl_paper_theme.layout.yaxis.minor.ticks = 'inside'
 pl_paper_theme.layout.xaxis.mirror = 'ticks'  # True | "ticks" | False | "all" | "allticks"
 pl_paper_theme.layout.yaxis.mirror = 'ticks'  # True | "ticks" | False | "all" | "allticks"
-pl_paper_theme.layout.font.size = 32
+pl_paper_theme.layout.font.size = 38
 # pl_paper_theme.layout.xaxis.title.standoff = 20
-pl_paper_theme.layout.xaxis.title.font.size = 40
+pl_paper_theme.layout.xaxis.title.font.size = 44
+pl_paper_theme.layout.xaxis.tickfont.size = 38
 # pl_paper_theme.layout.yaxis.title.standoff = 20
-pl_paper_theme.layout.yaxis.title.font.size = 40
-#pl_paper_theme.layout.coloraxis.colorbar.title.standoff = 20
+pl_paper_theme.layout.yaxis.title.font.size = 44
+pl_paper_theme.layout.yaxis.tickfont.size = 38
+# pl_paper_theme.layout.coloraxis.colorbar.tickfont.size = 44
 pio.templates.default = pl_paper_theme
 
 
@@ -141,6 +145,7 @@ def generate_tde_scatter_plot(
     yaxis_title: str = r'$\Large{\theta \; \left[ ^{\circ} \right]}$',
     yaxis_range: list = [0, 180],
     colorbar_title: str = r'$\Large{E_{d} \; \left[ \text{eV} \right]}$',
+    use_annot_cbar_title: bool = True,
     fig_name: PathLike | None = 'tde_scatter.png'
 ) -> go.Figure():
     """
@@ -176,6 +181,13 @@ def generate_tde_scatter_plot(
     ---------
         Figure showing TDE values on a colorscale on scatter plot points indicating the displacement directions.
     """
+    """
+    tde_min, tde_max = np.min(tde_sph_arr[:, 2]), np.max(tde_sph_arr[:, 2])
+    cbar_min = tde_min - (tde_min%5)
+    cbar_max = tde_max + (5 - (tde_max%5))
+    cbar_arr = np.arange(cbar_min, np.max(cbar_max+5), 5)
+    """
+    
     fig = go.Figure(
         data=go.Scatter(
             x=tde_sph_arr[:, 0],
@@ -188,12 +200,25 @@ def generate_tde_scatter_plot(
                 size=40,
                 colorbar=dict(
                     thickness=20,
-                    title=colorbar_title,
-                    title_side='right'
+                    title=dict(
+                        text=colorbar_title if not use_annot_cbar_title else None,
+                        side='right'
+                    )
                 )
             )
         )
     )
+    
+    if use_annot_cbar_title:
+        fig.add_annotation(
+            text=colorbar_title,
+            xref='paper',
+            yref='paper',
+            x=1.27,
+            y=0.5,
+            textangle=0,
+            showarrow=False
+        )
     
     if txt_show == True:
         fig.update_traces(textposition=improve_text_position(list(tde_directions), txt_positions=txt_positions_reg))
@@ -209,6 +234,7 @@ def generate_tde_scatter_plot(
         autosize=False,
         width=1600,
         height=900,
+        margin=dict(t=20, b=130, l=160, r=320),
         xaxis=dict(
             title=xaxis_title,
             range=xaxis_range,
