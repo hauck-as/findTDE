@@ -3,6 +3,8 @@ findTDE
 =======
 ``findTDE`` comprises a set of scripts to facilitate easy, high-throughput calculations of threshold displacement energies (TDEs) for materials using ab initio/classical molecular dynamics in ``VASP``/``LAMMPS``. The threshold displacement energy is the minimum kinetic energy transfer from incident radiation to a lattice atom that produces a permanent defect. This property is useful for understanding the radiation hardness of a material, and it is a required parameter for binary collision approximation calculations (e.g., SRIM/TRIM).
 
+.. image:: ftde_flowchart.png
+
 ------------
 Installation
 ------------
